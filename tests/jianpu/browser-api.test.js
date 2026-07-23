@@ -40,16 +40,34 @@ var abcWithWarning = jianpu.fromAbc(
 assert.ok(abcWithWarning.warnings.length > 0);
 
 var fingeringResult = jianpu.fromAbc(
-	"X:1\nK:C\n\"^1\"c' |]",
+	"X:1\nK:C\n\"Am\"\"^1\"c' |]",
 	{ staffWidth: 300 },
 	tuneBook.parseOnly
 );
 var fingeringEvent =
 	fingeringResult.layout.lines[0].measures[0].events[0];
 assert.strictEqual(fingeringEvent.annotations.fingerings[0].text, "1");
+assert.strictEqual(
+	fingeringEvent.notePositions[0].octaveDotPositions.length,
+	2
+);
 assert.ok(
 	fingeringEvent.annotations.fingerings[0].cy <
 		fingeringEvent.notePositions[0].octaveDotPositions[0].cy
+);
+assert.ok(
+	fingeringEvent.annotations.chords[0].y <
+		fingeringEvent.annotations.fingerings[0].cy -
+			fingeringEvent.annotations.fingerings[0].r
+);
+assert.ok(
+	fingeringEvent.notePositions[0].octaveDotPositions.reduce(
+			function(top, dot) { return Math.min(top, dot.cy - dot.r); },
+			Infinity
+		) -
+		(fingeringEvent.annotations.fingerings[0].cy +
+			fingeringEvent.annotations.fingerings[0].r) >=
+		jianpu.layoutJianpu.DEFAULT_OPTIONS.fingeringGap
 );
 assert.match(fingeringResult.svg, /class="jianpu-fingering-circle"/);
 assert.match(fingeringResult.svg, /class="jianpu-fingering-text"[^>]*>1<\/text>/);

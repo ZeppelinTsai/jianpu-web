@@ -114,12 +114,33 @@ var extensionLines =
 assert.strictEqual(extensionLines.length, 3);
 assert.strictEqual(
 	extensionLines[1].x1 - extensionLines[0].x1,
-	layoutJianpu.DEFAULT_OPTIONS.rhythmCellWidth
+	layoutJianpu.DEFAULT_OPTIONS.extensionDashWidth +
+		extensionCellLayout.lines[0].eventGap
 );
 assert.strictEqual(
 	extensionLines[2].x1 - extensionLines[1].x1,
-	layoutJianpu.DEFAULT_OPTIONS.rhythmCellWidth
+	layoutJianpu.DEFAULT_OPTIONS.extensionDashWidth +
+		extensionCellLayout.lines[0].eventGap
 );
+
+var centeredDashLayout = layoutJianpu([
+	{
+		notes: [{ number: 4, octaveDots: 0, accidentalMark: null }],
+		durationMarks: { extensionDashes: 1, underlines: 0, dots: 0 },
+	},
+	{
+		notes: [{ number: 3, octaveDots: 0, accidentalMark: null }],
+		durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
+	},
+], { staffWidth: 300 });
+var centeredEvents = centeredDashLayout.lines[0].measures[0].events;
+var dashCenter =
+	(centeredEvents[0].durationLayout.extensionDashes[0].x1 +
+		centeredEvents[0].durationLayout.extensionDashes[0].x2) / 2;
+assert.ok(Math.abs(
+	dashCenter - centeredEvents[0].notePositions[0].x -
+	(centeredEvents[1].notePositions[0].x - dashCenter)
+) < 1e-9);
 
 var tieLayout = layoutJianpu([
 	{

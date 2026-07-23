@@ -167,7 +167,10 @@ function createJianpuConverter(initialKey) {
 	function convertPitch(pitch) {
 		var rootIndex = DIATONIC_INDEX[getRootLetter(context.key)];
 		var relativePitch = Number(pitch.pitch) - rootIndex;
-		var octaveDots = Math.floor(relativePitch / 7);
+		// Scale degrees are relative to the key, but octave marks describe the
+		// pitch's actual ABC register. For example, c/d must keep their upper
+		// octave dots in A minor instead of being pulled into A's tonic octave.
+		var octaveDots = Math.floor(Number(pitch.pitch) / 7);
 		var tonicNumberOffset = isMinorKey(context.key) ? 5 : 0;
 		var number = mod(relativePitch + tonicNumberOffset, 7) + 1;
 

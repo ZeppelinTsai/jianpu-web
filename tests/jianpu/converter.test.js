@@ -172,6 +172,27 @@ assert.strictEqual(keyConverter.getEffectiveAccidental(keyNotes[6].pitches[0]), 
 keyConverter.resetBar();
 assert.strictEqual(keyConverter.getEffectiveAccidental(keyNotes[6].pitches[0]), "sharp");
 
+var minorOctaveCase = notesInFirstVoice([
+	"X:1",
+	"L:1/4",
+	"K:Amin",
+	"A B c d |]",
+].join("\n"));
+var minorOctaveConverter = createJianpuConverter(minorOctaveCase.staff.key);
+var minorOctaveEvents = minorOctaveCase.elements
+	.filter(function(element) { return element.el_type === "note"; })
+	.map(function(element) {
+		return minorOctaveConverter.convertNote(element)[0].notes[0];
+	});
+assert.deepStrictEqual(
+	minorOctaveEvents.map(function(note) { return note.number; }),
+	[6, 7, 1, 2]
+);
+assert.deepStrictEqual(
+	minorOctaveEvents.map(function(note) { return note.octaveDots; }),
+	[0, 0, 1, 1]
+);
+
 console.log(JSON.stringify({
 	key: staff.key,
 	events: converted.result,

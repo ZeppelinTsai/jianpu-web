@@ -2711,7 +2711,10 @@ function createJianpuConverter(initialKey) {
   function convertPitch(pitch) {
     var rootIndex = DIATONIC_INDEX[getRootLetter(context.key)];
     var relativePitch = Number(pitch.pitch) - rootIndex;
-    var octaveDots = Math.floor(relativePitch / 7);
+    // Scale degrees are relative to the key, but octave marks describe the
+    // pitch's actual ABC register. For example, c/d must keep their upper
+    // octave dots in A minor instead of being pulled into A's tonic octave.
+    var octaveDots = Math.floor(Number(pitch.pitch) / 7);
     var tonicNumberOffset = isMinorKey(context.key) ? 5 : 0;
     var number = mod(relativePitch + tonicNumberOffset, 7) + 1;
     if (octaveDots < -2 || octaveDots > 2) {
@@ -2962,20 +2965,20 @@ var DEFAULT_OPTIONS = {
   measurePadding: 10,
   eventGap: 10,
   minimumMeasurePadding: 2,
-  minimumEventGap: 2,
+  minimumEventGap: 5,
   maximumFlexibleScale: 2.5,
   numberFontSize: 22,
   headerFontSize: 16,
   showTempo: false,
   titleFontSize: 24,
   composerFontSize: 14,
-  measureNumberFontSize: 15,
+  measureNumberFontSize: 20,
   fingeringFontSize: 11,
   fingeringRadius: 8,
-  chordFontSize: 14,
+  fingeringGap: 5,
+  chordFontSize: 18,
   dynamicFontSize: 13,
   chordNoteGap: 22,
-  rhythmCellWidth: 26,
   numberWidth: 14,
   accidentalWidth: 14,
   accidentalGap: 2,
@@ -2989,7 +2992,6 @@ var DEFAULT_OPTIONS = {
   underlineSpacing: 4,
   durationDotWidth: 7,
   durationDotRadius: 1.8,
-  extensionLeadGap: 5,
   extensionDashWidth: 16,
   barGap: 14,
   thinBarWidth: 1,
@@ -3048,7 +3050,7 @@ function measureEvent(event, options, measureText) {
     widestNote = Math.max(widestNote, width);
   });
   var marks = event.durationMarks;
-  var rightWidth = (marks.extensionDashes ? options.extensionLeadGap : 0) + marks.extensionDashes * options.rhythmCellWidth + marks.dots * options.durationDotWidth;
+  var rightWidth = marks.extensionDashes * options.extensionDashWidth + marks.dots * options.durationDotWidth;
   var chordWidth = 0;
   (event.chordSymbols || []).forEach(function (chord) {
     chordWidth = Math.max(chordWidth, measureText(chord, {
@@ -3059,7 +3061,8 @@ function measureEvent(event, options, measureText) {
     source: event,
     naturalWidth: Math.max(widestNote + rightWidth, chordWidth),
     noteColumnWidth: widestNote,
-    rightWidth: rightWidth
+    rightWidth: rightWidth,
+    internalGapCount: marks.extensionDashes
   };
 }
 function createMeasure(index) {
@@ -3105,11 +3108,14 @@ function groupMeasures(elements, options, measureText, warnings) {
     var eventsWidth = measure.events.reduce(function (sum, event) {
       return sum + event.naturalWidth;
     }, 0);
-    var gapsWidth = Math.max(0, measure.events.length - 1) * options.eventGap;
+    measure.flexGapCount = Math.max(0, measure.events.length - 1) + measure.events.reduce(function (sum, event) {
+      return sum + event.internalGapCount;
+    }, 0);
+    var gapsWidth = measure.flexGapCount * options.eventGap;
     var endingBarWidth = measure.endingBar ? measure.endingBar.width + options.barGap : 0;
     measure.fixedWidth = eventsWidth + endingBarWidth;
     measure.naturalWidth = measure.fixedWidth + options.measurePadding * 2 + gapsWidth;
-    measure.minimumWidth = measure.fixedWidth + options.minimumMeasurePadding * 2 + Math.max(0, measure.events.length - 1) * options.minimumEventGap;
+    measure.minimumWidth = measure.fixedWidth + options.minimumMeasurePadding * 2 + measure.flexGapCount * options.minimumEventGap;
   });
   return measures;
 }
@@ -3228,12 +3234,12 @@ function positionLine(line, lineIndex, contentWidth, options) {
   line.measureNumber = {
     text: String(line.measures[0].index + 1),
     x: Math.max(4, options.paddingLeft - 16),
-    y: lineTop + 27
+    y: lineTop + 9
   };
   line.measurePadding = measurePadding;
   line.eventGap = eventGap;
   line.width = fixedWidth + line.measures.length * measurePadding * 2 + line.measures.reduce(function (sum, measure) {
-    return sum + Math.max(0, measure.events.length - 1) * eventGap;
+    return sum + measure.flexGapCount * eventGap;
   }, 0);
   // Centre every measure's note group between its left and right boundaries.
   // Splitting the remaining line width equally across both sides of every
@@ -3245,12 +3251,12 @@ function positionLine(line, lineIndex, contentWidth, options) {
   line.measures.forEach(function (measure) {
     measure.x = cursorX;
     measure.y = lineTop;
-    measure.width = measure.fixedWidth + measurePadding * 2 + Math.max(0, measure.events.length - 1) * eventGap;
+    measure.width = measure.fixedWidth + measurePadding * 2 + measure.flexGapCount * eventGap;
     var eventX = cursorX + measurePadding + (measure.endingBar ? options.barGap / 2 : 0);
     measure.events.forEach(function (event) {
       event.x = eventX;
       event.y = baselineY;
-      event.width = event.naturalWidth;
+      event.width = event.naturalWidth + event.internalGapCount * eventGap;
       event.notePositions = [];
       var notes = event.source.notes;
       notes.forEach(function (note, noteIndex) {
@@ -3292,12 +3298,21 @@ function positionLine(line, lineIndex, contentWidth, options) {
         start: false,
         end: false
       }, event.source.beam);
+      var highDotTop = baselineY - options.numberTopOffset - options.octaveDotRadius;
+      event.notePositions.forEach(function (note) {
+        note.octaveDotPositions.forEach(function (dot) {
+          if (dot.cy < note.y) highDotTop = Math.min(highDotTop, dot.cy - dot.r);
+        });
+      });
+      var firstFingeringCy = highDotTop - options.fingeringGap - options.fingeringRadius;
+      var fingeringTop = firstFingeringCy - options.fingeringRadius;
+      var chordBaseY = Math.min(lineTop + 15, fingeringTop - 4);
       event.annotations = {
         chords: (event.source.chordSymbols || []).map(function (chord, index) {
           return {
             text: chord,
             x: eventX + event.noteColumnWidth / 2,
-            y: lineTop + 27 - index * (options.chordFontSize + 2)
+            y: chordBaseY - index * (options.chordFontSize + 2)
           };
         }),
         dynamics: [],
@@ -3305,7 +3320,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
           return {
             text: fingering,
             cx: eventX + event.noteColumnWidth / 2,
-            cy: lineTop + 9 - index * (options.fingeringRadius * 2 + 3),
+            cy: firstFingeringCy - index * (options.fingeringRadius * 2 + 3),
             r: options.fingeringRadius
           };
         })
@@ -3328,9 +3343,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
         });
       }
       var rightCursor = eventX + event.noteColumnWidth;
-      if (event.durationMarks.extensionDashes) rightCursor += options.extensionLeadGap;
       for (var dashIndex = 0; dashIndex < event.durationMarks.extensionDashes; dashIndex++) {
-        var dashStart = rightCursor + dashIndex * options.rhythmCellWidth + (options.rhythmCellWidth - options.extensionDashWidth) / 2;
+        var dashStart = rightCursor + (dashIndex + 1) * eventGap + dashIndex * options.extensionDashWidth;
         event.durationLayout.extensionDashes.push({
           x1: dashStart,
           x2: dashStart + options.extensionDashWidth,
@@ -3339,7 +3353,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
           strokeWidth: 1.5
         });
       }
-      rightCursor += event.durationMarks.extensionDashes * options.rhythmCellWidth;
+      rightCursor += event.durationMarks.extensionDashes * (options.extensionDashWidth + eventGap);
       for (var durationDotIndex = 0; durationDotIndex < event.durationMarks.dots; durationDotIndex++) {
         event.durationLayout.dots.push({
           cx: rightCursor + options.durationDotWidth / 2 + durationDotIndex * options.durationDotWidth,

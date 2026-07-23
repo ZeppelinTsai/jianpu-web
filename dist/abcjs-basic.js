@@ -28068,6 +28068,7 @@ Renderer.prototype.initVerticalSpace = function () {
   are automatic.
   <float> must be between 0 (natural spacing)
   and 1 (max shrinking).
+  
   // This next value is used to compute the natural spacing of
   // the notes. The base spacing of the crotchet is always
   // 40 pts. When the duration of a note type is twice the
@@ -28079,7 +28080,9 @@ Renderer.prototype.initVerticalSpace = function () {
   // semiquaver is 20 pts.
   // Setting this value to 1 sets all note spacing to 40 pts.
   noteSpacingFactor: 1.414, // Set the note spacing factor to <float> (range 1..2).
+  
   scale <float> Default: 0.75 Set the page scale factor. Note that the header and footer are not scaled.
+  
   stretchlast <float>Default: 0.8
   Stretch the last music line of a tune when it exceeds
   the <float> fraction of the page width.

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <title>abcjs 測試 + AST 對照</title>
+    <script src="dist/abcjs-basic.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        font-family: monospace;
+      }
+      #paper {
+        border: 1px solid #ccc;
+        margin-top: 10px;
+      }
+      pre {
+        background: #f5f5f5;
+        padding: 10px;
+        overflow: auto;
+        max-height: 400px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>ABC 輸入</h2>
+    <textarea id="abc-input">
+X:1
+T:Test Tune
+M:4/4
+L:1/4
+K:C
+C D E F | G2 A/B/ z | [CEG] ^F2 |]</textarea
+    >
+    <button onclick="render()">重新渲染</button>
+
+    <h2>五線譜輸出</h2>
+    <div id="paper"></div>
+
+    <h2>Tune AST(JSON)</h2>
+    <pre id="ast-output"></pre>
+
+    <script>
+      function render() {
+        var abc = document.getElementById("abc-input").value;
+
+        // 畫五線譜(給你眼睛看的)
+        ABCJS.renderAbc("paper", abc);
+
+        // 另外呼叫 parseOnly,拿乾淨的 AST(不經過畫圖引擎,不會循環參照)
+        var tunes = ABCJS.parseOnly(abc);
+        var tune = tunes[0];
+
+        document.getElementById("ast-output").textContent = JSON.stringify(
+          tune.lines,
+          null,
+          2,
+        );
+      }
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,549 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" class="abcjs-jianpu" width="800" height="1140" viewBox="0 0 800 1140" role="img" aria-label="思愁">
+<style>.abcjs-jianpu{background:#fff;color:#111}.jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{font-family:"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif;fill:currentColor}.jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic,.jianpu-measure-number,.jianpu-fingering-text{font-family:"Times New Roman", "Noto Serif", "Noto Serif Symbols", Georgia, serif;fill:currentColor}.jianpu-number{text-anchor:middle;font-size:22px}.jianpu-accidental{text-anchor:end;font-size:15.4px}.jianpu-title{text-anchor:middle;font-size:24px;font-weight:600}.jianpu-header{font-size:16px}.jianpu-meter{text-anchor:middle;font-size:12.48px;font-weight:600}.jianpu-composer{text-anchor:end;font-size:14px;font-style:italic}.jianpu-chord{text-anchor:middle;font-size:14px;font-weight:600}.jianpu-dynamic{text-anchor:middle;font-size:13px;font-style:italic}.jianpu-measure-number{font-size:15px;font-weight:600}.jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;font-size:11px}.jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}.jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}.jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{stroke:currentColor;fill:none;stroke-linecap:butt}.jianpu-meter-line{stroke:currentColor;fill:none}</style>
+<text class="jianpu-title" x="400" y="44">思愁</text>
+<text class="jianpu-composer" x="776" y="68">ZeppelinTsai</text>
+<text class="jianpu-header" x="24" y="88">6=A</text>
+<text class="jianpu-meter jianpu-meter-numerator" x="66.544" y="78">4</text>
+<text class="jianpu-meter jianpu-meter-denominator" x="66.544" y="95">4</text>
+<line class="jianpu-meter-line" x1="61.8" y1="83" x2="71.288" y2="83" stroke-width="1"/>
+<g class="jianpu-line" data-line="1">
+<text class="jianpu-measure-number" x="8" y="127">1</text>
+<g class="jianpu-measure" data-measure="1">
+<g class="jianpu-event">
+<text class="jianpu-number" x="68.875" y="163.24">6</text>
+<text class="jianpu-chord" x="68.875" y="127">Am</text>
+<text class="jianpu-dynamic" x="68.875" y="184.24">pp</text>
+<line class="jianpu-extension" x1="85.875" y1="158.24" x2="101.875" y2="158.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="111.875" y1="158.24" x2="127.875" y2="158.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="164.875" y="163.24">2</text>
+<circle class="jianpu-octave-dot" cx="164.875" cy="168.24" r="2"/>
+</g>
+<line class="jianpu-bar" x1="209.75" y1="112" x2="209.75" y2="184" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="2">
+<g class="jianpu-event">
+<text class="jianpu-number" x="255.625" y="163.24">6</text>
+<text class="jianpu-chord" x="255.625" y="127">F</text>
+<line class="jianpu-extension" x1="272.625" y1="158.24" x2="288.625" y2="158.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="325.625" y="163.24">5</text>
+<circle class="jianpu-octave-dot" cx="325.625" cy="168.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="364.625" y="163.24">6</text>
+</g>
+<line class="jianpu-bar" x1="409.5" y1="112" x2="409.5" y2="184" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="3">
+<g class="jianpu-event">
+<text class="jianpu-number" x="455.375" y="163.24">1</text>
+<text class="jianpu-chord" x="455.375" y="127">Dm</text>
+<line class="jianpu-extension" x1="472.375" y1="158.24" x2="488.375" y2="158.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="525.375" y="163.24">7</text>
+<line class="jianpu-extension" x1="542.375" y1="158.24" x2="558.375" y2="158.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="601.25" y1="112" x2="601.25" y2="184" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="4">
+<g class="jianpu-event">
+<text class="jianpu-number" x="647.125" y="163.24">5</text>
+<circle class="jianpu-octave-dot" cx="647.125" cy="168.24" r="2"/>
+<text class="jianpu-chord" x="647.125" y="127">Em</text>
+<line class="jianpu-extension" x1="664.125" y1="158.24" x2="680.125" y2="158.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="690.125" y1="158.24" x2="706.125" y2="158.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="716.125" y1="158.24" x2="732.125" y2="158.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="112" x2="775" y2="184" stroke-width="1"/>
+</g>
+</g>
+<g class="jianpu-line" data-line="2">
+<text class="jianpu-measure-number" x="8" y="229">5</text>
+<g class="jianpu-measure" data-measure="5">
+<g class="jianpu-event">
+<text class="jianpu-number" x="70.5" y="265.24">4</text>
+<circle class="jianpu-octave-dot" cx="70.5" cy="270.24" r="2"/>
+<text class="jianpu-chord" x="70.5" y="229">F</text>
+<line class="jianpu-extension" x1="87.5" y1="260.24" x2="103.5" y2="260.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="140.5" y="265.24">3</text>
+<circle class="jianpu-octave-dot" cx="140.5" cy="270.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="179.5" y="265.24">4</text>
+<circle class="jianpu-octave-dot" cx="179.5" cy="270.24" r="2"/>
+</g>
+<line class="jianpu-bar" x1="226" y1="214" x2="226" y2="286" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="6">
+<g class="jianpu-event">
+<text class="jianpu-number" x="273.5" y="265.24">5</text>
+<circle class="jianpu-octave-dot" cx="273.5" cy="270.24" r="2"/>
+<text class="jianpu-chord" x="273.5" y="229">Em</text>
+<line class="jianpu-extension" x1="290.5" y1="260.24" x2="306.5" y2="260.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="343.5" y="265.24">3</text>
+<circle class="jianpu-octave-dot" cx="343.5" cy="270.24" r="2"/>
+<line class="jianpu-extension" x1="360.5" y1="260.24" x2="376.5" y2="260.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="421" y1="214" x2="421" y2="286" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="7">
+<g class="jianpu-event">
+<text class="jianpu-number" x="468.5" y="265.24">2</text>
+<circle class="jianpu-octave-dot" cx="468.5" cy="270.24" r="2"/>
+<text class="jianpu-chord" x="468.5" y="229">G</text>
+<line class="jianpu-extension" x1="485.5" y1="260.24" x2="501.5" y2="260.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="511.5" y1="260.24" x2="527.5" y2="260.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="537.5" y1="260.24" x2="553.5" y2="260.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="598" y1="214" x2="598" y2="286" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="8">
+<g class="jianpu-event">
+<text class="jianpu-number" x="645.5" y="265.24">2</text>
+<circle class="jianpu-octave-dot" cx="645.5" cy="270.24" r="2"/>
+<line class="jianpu-extension" x1="662.5" y1="260.24" x2="678.5" y2="260.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="688.5" y1="260.24" x2="704.5" y2="260.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="714.5" y1="260.24" x2="730.5" y2="260.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="214" x2="775" y2="286" stroke-width="1"/>
+</g>
+<path class="jianpu-tie" d="M 474.5 242.24 C 557 232.24, 557 232.24, 639.5 242.24" stroke-width="1.2"/>
+</g>
+<g class="jianpu-line" data-line="3">
+<text class="jianpu-measure-number" x="8" y="331">9</text>
+<g class="jianpu-measure" data-measure="9">
+<g class="jianpu-event">
+<text class="jianpu-number" x="68.875" y="367.24">6</text>
+<text class="jianpu-chord" x="68.875" y="331">Am</text>
+<text class="jianpu-dynamic" x="68.875" y="388.24">p</text>
+<line class="jianpu-extension" x1="85.875" y1="362.24" x2="101.875" y2="362.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="111.875" y1="362.24" x2="127.875" y2="362.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="164.875" y="367.24">2</text>
+<circle class="jianpu-octave-dot" cx="164.875" cy="372.24" r="2"/>
+</g>
+<line class="jianpu-bar" x1="209.75" y1="316" x2="209.75" y2="388" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="10">
+<g class="jianpu-event">
+<text class="jianpu-number" x="255.625" y="367.24">6</text>
+<text class="jianpu-chord" x="255.625" y="331">F</text>
+<line class="jianpu-extension" x1="272.625" y1="362.24" x2="288.625" y2="362.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="325.625" y="367.24">5</text>
+<circle class="jianpu-octave-dot" cx="325.625" cy="372.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="364.625" y="367.24">6</text>
+</g>
+<line class="jianpu-bar" x1="409.5" y1="316" x2="409.5" y2="388" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="11">
+<g class="jianpu-event">
+<text class="jianpu-number" x="455.375" y="367.24">1</text>
+<text class="jianpu-chord" x="455.375" y="331">Dm</text>
+<line class="jianpu-extension" x1="472.375" y1="362.24" x2="488.375" y2="362.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="525.375" y="367.24">7</text>
+<line class="jianpu-extension" x1="542.375" y1="362.24" x2="558.375" y2="362.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="601.25" y1="316" x2="601.25" y2="388" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="12">
+<g class="jianpu-event">
+<text class="jianpu-number" x="647.125" y="367.24">5</text>
+<circle class="jianpu-octave-dot" cx="647.125" cy="372.24" r="2"/>
+<text class="jianpu-chord" x="647.125" y="331">Em</text>
+<line class="jianpu-extension" x1="664.125" y1="362.24" x2="680.125" y2="362.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="690.125" y1="362.24" x2="706.125" y2="362.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="716.125" y1="362.24" x2="732.125" y2="362.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="316" x2="775" y2="388" stroke-width="1"/>
+</g>
+</g>
+<g class="jianpu-line" data-line="4">
+<text class="jianpu-measure-number" x="8" y="433">13</text>
+<g class="jianpu-measure" data-measure="13">
+<g class="jianpu-event">
+<text class="jianpu-number" x="70.5" y="469.24">4</text>
+<circle class="jianpu-octave-dot" cx="70.5" cy="474.24" r="2"/>
+<text class="jianpu-chord" x="70.5" y="433">F</text>
+<line class="jianpu-extension" x1="87.5" y1="464.24" x2="103.5" y2="464.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="140.5" y="469.24">3</text>
+<circle class="jianpu-octave-dot" cx="140.5" cy="474.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="179.5" y="469.24">4</text>
+<circle class="jianpu-octave-dot" cx="179.5" cy="474.24" r="2"/>
+</g>
+<line class="jianpu-bar" x1="226" y1="418" x2="226" y2="490" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="14">
+<g class="jianpu-event">
+<text class="jianpu-number" x="273.5" y="469.24">5</text>
+<circle class="jianpu-octave-dot" cx="273.5" cy="474.24" r="2"/>
+<text class="jianpu-chord" x="273.5" y="433">C</text>
+<line class="jianpu-extension" x1="290.5" y1="464.24" x2="306.5" y2="464.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="343.5" y="469.24">1</text>
+<circle class="jianpu-octave-dot" cx="343.5" cy="474.24" r="2"/>
+<line class="jianpu-extension" x1="360.5" y1="464.24" x2="376.5" y2="464.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="421" y1="418" x2="421" y2="490" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="15">
+<g class="jianpu-event">
+<text class="jianpu-number" x="468.5" y="469.24">2</text>
+<circle class="jianpu-octave-dot" cx="468.5" cy="474.24" r="2"/>
+<text class="jianpu-chord" x="468.5" y="433">G</text>
+<line class="jianpu-extension" x1="485.5" y1="464.24" x2="501.5" y2="464.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="511.5" y1="464.24" x2="527.5" y2="464.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="537.5" y1="464.24" x2="553.5" y2="464.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="598" y1="418" x2="598" y2="490" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="16">
+<g class="jianpu-event">
+<text class="jianpu-number" x="645.5" y="469.24">2</text>
+<circle class="jianpu-octave-dot" cx="645.5" cy="474.24" r="2"/>
+<line class="jianpu-extension" x1="662.5" y1="464.24" x2="678.5" y2="464.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="688.5" y1="464.24" x2="704.5" y2="464.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="714.5" y1="464.24" x2="730.5" y2="464.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="418" x2="775" y2="490" stroke-width="1"/>
+</g>
+<path class="jianpu-tie" d="M 474.5 446.24 C 557 436.24, 557 436.24, 639.5 446.24" stroke-width="1.2"/>
+</g>
+<g class="jianpu-line" data-line="5">
+<text class="jianpu-measure-number" x="8" y="535">17</text>
+<g class="jianpu-measure" data-measure="17">
+<g class="jianpu-event">
+<text class="jianpu-number" x="92.2" y="571.24">2</text>
+<text class="jianpu-chord" x="92.2" y="535">F</text>
+<text class="jianpu-dynamic" x="92.2" y="592.24">mf</text>
+<line class="jianpu-extension" x1="109.2" y1="566.24" x2="125.2" y2="566.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="162.2" y="571.24">1</text>
+<line class="jianpu-extension" x1="179.2" y1="566.24" x2="195.2" y2="566.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="261.4" y1="520" x2="261.4" y2="592" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="18">
+<g class="jianpu-event">
+<text class="jianpu-number" x="330.6" y="571.24">7</text>
+<text class="jianpu-chord" x="330.6" y="535">G</text>
+<line class="jianpu-extension" x1="347.6" y1="566.24" x2="363.6" y2="566.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="400.6" y="571.24">5</text>
+<circle class="jianpu-octave-dot" cx="400.6" cy="576.24" r="2"/>
+<line class="jianpu-extension" x1="417.6" y1="566.24" x2="433.6" y2="566.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="499.8" y1="520" x2="499.8" y2="592" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="19">
+<g class="jianpu-event">
+<text class="jianpu-number" x="569" y="571.24">6</text>
+<text class="jianpu-chord" x="569" y="535">Am</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="610.8" y="571.24">7</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="649.8" y="571.24">6</text>
+<line class="jianpu-extension" x1="666.8" y1="566.24" x2="682.8" y2="566.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="692.8" y1="566.24" x2="708.8" y2="566.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-underline jianpu-beam" x1="562" y1="578.24" x2="617.8" y2="578.24" stroke-width="1.4"/>
+<line class="jianpu-bar" x1="775" y1="520" x2="775" y2="592" stroke-width="1"/>
+</g>
+</g>
+<g class="jianpu-line" data-line="6">
+<text class="jianpu-measure-number" x="8" y="637">20</text>
+<g class="jianpu-measure" data-measure="20">
+<g class="jianpu-event">
+<text class="jianpu-number" x="70.5" y="673.24">1</text>
+<text class="jianpu-chord" x="70.5" y="637">C</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="109.5" y="673.24">2</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="148.5" y="673.24">3</text>
+<line class="jianpu-extension" x1="165.5" y1="668.24" x2="181.5" y2="668.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="226" y1="622" x2="226" y2="694" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="21">
+<g class="jianpu-event">
+<text class="jianpu-number" x="273.5" y="673.24">5</text>
+<text class="jianpu-chord" x="273.5" y="637">F</text>
+<line class="jianpu-extension" x1="290.5" y1="668.24" x2="306.5" y2="668.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="343.5" y="673.24">1</text>
+<line class="jianpu-extension" x1="360.5" y1="668.24" x2="376.5" y2="668.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="421" y1="622" x2="421" y2="694" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="22">
+<g class="jianpu-event">
+<text class="jianpu-number" x="468.5" y="673.24">2</text>
+<text class="jianpu-chord" x="468.5" y="637">E7</text>
+<line class="jianpu-extension" x1="485.5" y1="668.24" x2="501.5" y2="668.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="511.5" y1="668.24" x2="527.5" y2="668.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="537.5" y1="668.24" x2="553.5" y2="668.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="598" y1="622" x2="598" y2="694" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="23">
+<g class="jianpu-event">
+<text class="jianpu-number" x="645.5" y="673.24">2</text>
+<line class="jianpu-extension" x1="662.5" y1="668.24" x2="678.5" y2="668.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="688.5" y1="668.24" x2="704.5" y2="668.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="714.5" y1="668.24" x2="730.5" y2="668.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="622" x2="775" y2="694" stroke-width="1"/>
+</g>
+<path class="jianpu-tie" d="M 474.5 650.24 C 557 640.24, 557 640.24, 639.5 650.24" stroke-width="1.2"/>
+</g>
+<g class="jianpu-line" data-line="7">
+<text class="jianpu-measure-number" x="8" y="739">24</text>
+<g class="jianpu-measure" data-measure="24">
+<g class="jianpu-event">
+<text class="jianpu-number" x="92.2" y="775.24">1</text>
+<circle class="jianpu-octave-dot" cx="92.2" cy="780.24" r="2"/>
+<text class="jianpu-chord" x="92.2" y="739">Am</text>
+<text class="jianpu-dynamic" x="92.2" y="796.24">mp</text>
+<line class="jianpu-extension" x1="109.2" y1="770.24" x2="125.2" y2="770.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="162.2" y="775.24">7</text>
+<circle class="jianpu-octave-dot" cx="162.2" cy="780.24" r="2"/>
+<line class="jianpu-extension" x1="179.2" y1="770.24" x2="195.2" y2="770.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="261.4" y1="724" x2="261.4" y2="796" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="25">
+<g class="jianpu-event">
+<text class="jianpu-number" x="330.6" y="775.24">6</text>
+<circle class="jianpu-octave-dot" cx="330.6" cy="780.24" r="2"/>
+<text class="jianpu-chord" x="330.6" y="739">F</text>
+<line class="jianpu-extension" x1="347.6" y1="770.24" x2="363.6" y2="770.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="400.6" y="775.24">5</text>
+<circle class="jianpu-octave-dot" cx="400.6" cy="780.24" r="2"/>
+<circle class="jianpu-octave-dot" cx="400.6" cy="785.24" r="2"/>
+<line class="jianpu-extension" x1="417.6" y1="770.24" x2="433.6" y2="770.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="499.8" y1="724" x2="499.8" y2="796" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="26">
+<g class="jianpu-event">
+<text class="jianpu-number" x="569" y="775.24">4</text>
+<circle class="jianpu-octave-dot" cx="569" cy="787.24" r="2"/>
+<circle class="jianpu-octave-dot" cx="569" cy="792.24" r="2"/>
+<text class="jianpu-chord" x="569" y="739">Dm</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="610.8" y="775.24">5</text>
+<circle class="jianpu-octave-dot" cx="610.8" cy="787.24" r="2"/>
+<circle class="jianpu-octave-dot" cx="610.8" cy="792.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="649.8" y="775.24">6</text>
+<circle class="jianpu-octave-dot" cx="649.8" cy="780.24" r="2"/>
+<line class="jianpu-extension" x1="666.8" y1="770.24" x2="682.8" y2="770.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="692.8" y1="770.24" x2="708.8" y2="770.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-underline jianpu-beam" x1="562" y1="782.24" x2="617.8" y2="782.24" stroke-width="1.4"/>
+<line class="jianpu-bar" x1="775" y1="724" x2="775" y2="796" stroke-width="1"/>
+</g>
+</g>
+<g class="jianpu-line" data-line="8">
+<text class="jianpu-measure-number" x="8" y="841">27</text>
+<g class="jianpu-measure" data-measure="27">
+<g class="jianpu-event">
+<text class="jianpu-number" x="66.25" y="877.24">1</text>
+<circle class="jianpu-octave-dot" cx="66.25" cy="882.24" r="2"/>
+<text class="jianpu-chord" x="66.25" y="841">C</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="105.25" y="877.24">2</text>
+<circle class="jianpu-octave-dot" cx="105.25" cy="882.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="144.25" y="877.24">3</text>
+<circle class="jianpu-octave-dot" cx="144.25" cy="882.24" r="2"/>
+<line class="jianpu-extension" x1="161.25" y1="872.24" x2="177.25" y2="872.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="217.5" y1="826" x2="217.5" y2="898" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="28">
+<g class="jianpu-event">
+<text class="jianpu-number" x="260.75" y="877.24">5</text>
+<circle class="jianpu-octave-dot" cx="260.75" cy="882.24" r="2"/>
+<text class="jianpu-chord" x="260.75" y="841">Em</text>
+<line class="jianpu-extension" x1="277.75" y1="872.24" x2="293.75" y2="872.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="303.75" y1="872.24" x2="319.75" y2="872.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="356.75" y="877.24">1</text>
+<circle class="jianpu-octave-dot" cx="356.75" cy="889.24" r="2"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="395.75" y="877.24">3</text>
+<circle class="jianpu-octave-dot" cx="395.75" cy="889.24" r="2"/>
+</g>
+<line class="jianpu-underline jianpu-beam" x1="349.75" y1="884.24" x2="402.75" y2="884.24" stroke-width="1.4"/>
+<line class="jianpu-bar" x1="438" y1="826" x2="438" y2="898" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="29">
+<g class="jianpu-event">
+<text class="jianpu-number" x="481.25" y="877.24">2</text>
+<circle class="jianpu-octave-dot" cx="481.25" cy="882.24" r="2"/>
+<text class="jianpu-chord" x="481.25" y="841">G</text>
+<line class="jianpu-extension" x1="498.25" y1="872.24" x2="514.25" y2="872.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="524.25" y1="872.24" x2="540.25" y2="872.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="550.25" y1="872.24" x2="566.25" y2="872.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="606.5" y1="826" x2="606.5" y2="898" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="30">
+<g class="jianpu-event">
+<text class="jianpu-number" x="649.75" y="877.24">2</text>
+<circle class="jianpu-octave-dot" cx="649.75" cy="882.24" r="2"/>
+<line class="jianpu-extension" x1="666.75" y1="872.24" x2="682.75" y2="872.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="692.75" y1="872.24" x2="708.75" y2="872.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="718.75" y1="872.24" x2="734.75" y2="872.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="826" x2="775" y2="898" stroke-width="1"/>
+</g>
+<path class="jianpu-tie" d="M 487.25 854.24 C 565.5 844.24, 565.5 844.24, 643.75 854.24" stroke-width="1.2"/>
+</g>
+<g class="jianpu-line" data-line="9">
+<text class="jianpu-measure-number" x="8" y="943">31</text>
+<g class="jianpu-measure" data-measure="31">
+<g class="jianpu-event">
+<text class="jianpu-number" x="40.287" y="979.24">6</text>
+<text class="jianpu-chord" x="40.287" y="943">Am</text>
+<text class="jianpu-dynamic" x="40.287" y="1000.24">f</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="59.374" y="979.24">7</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="75.661" y="979.24">1</text>
+<line class="jianpu-extension" x1="92.661" y1="974.24" x2="108.661" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="122.948" y1="928" x2="122.948" y2="1000" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="32">
+<g class="jianpu-event">
+<text class="jianpu-number" x="140.235" y="979.24">7</text>
+<text class="jianpu-chord" x="140.235" y="943">F</text>
+<line class="jianpu-extension" x1="157.235" y1="974.24" x2="173.235" y2="974.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="187.522" y="979.24">5</text>
+<circle class="jianpu-octave-dot" cx="187.522" cy="984.24" r="2"/>
+<line class="jianpu-extension" x1="204.522" y1="974.24" x2="220.522" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="234.809" y1="928" x2="234.809" y2="1000" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="33">
+<g class="jianpu-event">
+<text class="jianpu-number" x="252.096" y="979.24">6</text>
+<text class="jianpu-chord" x="252.096" y="943">Am</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="271.183" y="979.24">7</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="287.47" y="979.24">1</text>
+<line class="jianpu-extension" x1="304.47" y1="974.24" x2="320.47" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="334.757" y1="928" x2="334.757" y2="1000" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="34">
+<g class="jianpu-event">
+<text class="jianpu-number" x="352.043" y="979.24">2</text>
+<text class="jianpu-chord" x="352.043" y="943">G</text>
+<line class="jianpu-extension" x1="369.043" y1="974.24" x2="385.043" y2="974.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="399.33" y="979.24">7</text>
+<line class="jianpu-extension" x1="416.33" y1="974.24" x2="432.33" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="446.617" y1="928" x2="446.617" y2="1000" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="35">
+<g class="jianpu-event">
+<text class="jianpu-number" x="463.904" y="979.24">6</text>
+<text class="jianpu-chord" x="463.904" y="943">Am</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="482.991" y="979.24">7</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="499.278" y="979.24">1</text>
+<line class="jianpu-extension" x1="516.278" y1="974.24" x2="532.278" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="546.565" y1="928" x2="546.565" y2="1000" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="36">
+<g class="jianpu-event">
+<text class="jianpu-number" x="563.852" y="979.24">7</text>
+<text class="jianpu-chord" x="563.852" y="943">Em</text>
+<line class="jianpu-extension" x1="580.852" y1="974.24" x2="596.852" y2="974.24" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="611.139" y="979.24">5</text>
+<circle class="jianpu-octave-dot" cx="611.139" cy="984.24" r="2"/>
+<line class="jianpu-extension" x1="628.139" y1="974.24" x2="644.139" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="658.426" y1="928" x2="658.426" y2="1000" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="37">
+<g class="jianpu-event">
+<text class="jianpu-number" x="675.713" y="979.24">6</text>
+<text class="jianpu-chord" x="675.713" y="943">Am</text>
+<line class="jianpu-extension" x1="692.713" y1="974.24" x2="708.713" y2="974.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="718.713" y1="974.24" x2="734.713" y2="974.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="744.713" y1="974.24" x2="760.713" y2="974.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="928" x2="775" y2="1000" stroke-width="1"/>
+</g>
+<path class="jianpu-tie" d="M 681.7130434782608 956.24 C 726.3565217391304 946.24, 726.3565217391304 946.24, 770.9999999999999 956.24" stroke-width="1.2"/>
+</g>
+<g class="jianpu-line" data-line="10">
+<text class="jianpu-measure-number" x="8" y="1045">38</text>
+<g class="jianpu-measure" data-measure="38">
+<g class="jianpu-event">
+<text class="jianpu-number" x="358" y="1081.24">6</text>
+<line class="jianpu-extension" x1="375" y1="1076.24" x2="391" y2="1076.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="401" y1="1076.24" x2="417" y2="1076.24" stroke-width="1.5"/>
+<line class="jianpu-extension" x1="427" y1="1076.24" x2="443" y2="1076.24" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="775" y1="1030" x2="775" y2="1102" stroke-width="1"/>
+</g>
+<path class="jianpu-tie" d="M 29 1058.24 C 190.5 1048.24, 190.5 1048.24, 352 1058.24" stroke-width="1.2"/>
+</g>
+</svg>

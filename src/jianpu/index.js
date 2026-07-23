@@ -31,6 +31,13 @@ function meterLabel(staff) {
 	}).join("+");
 }
 
+function tempoLabel(tune) {
+	var tempo = tune.metaText && tune.metaText.tempo;
+	if (!tempo || !tempo.bpm)
+		return "";
+	return "♩=" + tempo.bpm;
+}
+
 function findFirstStaff(tune) {
 	for (var i = 0; i < tune.lines.length; i++) {
 		if (tune.lines[i].staff && tune.lines[i].staff.length)
@@ -67,14 +74,17 @@ function convertAbcTune(tune) {
 				});
 			}
 		});
+		elements.push({ type: "line_break" });
 	});
 
 	return {
 		elements: elements,
 		header: {
 			title: tune.metaText && tune.metaText.title || "",
+			composer: tune.metaText && tune.metaText.composer || "",
 			keyLabel: keyLabelFromStaffKey(firstStaff.key),
 			meterLabel: meterLabel(firstStaff),
+			tempoLabel: tempoLabel(tune),
 		},
 		warnings: warnings.concat(converter.context.warnings),
 	};
@@ -86,6 +96,8 @@ function finish(elements, header, warnings, options) {
 		title: header.title,
 		keyLabel: header.keyLabel,
 		meterLabel: header.meterLabel,
+		composer: header.composer || "",
+		tempoLabel: header.tempoLabel || "",
 	});
 	var layout = layoutJianpu(elements, layoutOptions, options.measureText);
 	return {

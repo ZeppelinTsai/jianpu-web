@@ -48,6 +48,7 @@
 		}
 		#preview {
 			min-height: 240px;
+			padding-left: 20px;
 			overflow: auto;
 			border: 1px solid #ddd;
 			background: white;
@@ -75,6 +76,32 @@
 			.workspace { grid-template-columns: 1fr; }
 			textarea { height: 360px; min-height: 260px; }
 		}
+		@page {
+			size: A4 portrait;
+			margin: 12mm;
+		}
+		@media print {
+			body { padding: 0; background: white; }
+			h1, .toolbar, .input-panel, #messages { display: none !important; }
+			.workspace, .output-panel {
+				display: block;
+				min-height: 0;
+				padding: 0;
+				border: 0;
+			}
+			.output-panel h2 { display: none; }
+			#preview {
+				overflow: visible;
+				min-height: 0;
+				padding-left: 0;
+				border: 0;
+			}
+			#preview svg {
+				display: block;
+				width: 100%;
+				height: auto;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -86,14 +113,16 @@
 			<option value="text">簡譜文字模式</option>
 		</select>
 		<button id="render" type="button">渲染</button>
+		<button id="print" type="button">列印／儲存 PDF</button>
+		<span>ABC 指法範例：<code>"^1"A</code></span>
 	</div>
 
 	<main class="workspace">
-		<section class="panel">
+		<section class="panel input-panel">
 			<h2>輸入</h2>
 			<textarea id="input" spellcheck="false" aria-label="樂譜輸入"></textarea>
 		</section>
-		<section class="panel">
+		<section class="panel output-panel">
 			<h2>簡譜 SVG</h2>
 			<div id="preview"></div>
 			<pre id="messages" class="ok">沒有 warnings</pre>
@@ -107,11 +136,24 @@
 			var examples = {
 				abc: [
 					"X:1",
-					"T:Test Tune",
+					"T:思愁",
+					"C:ZeppelinTsai",
 					"M:4/4",
-					"L:1/4",
-					"K:C",
-					"C D E F | G2 A/B/ z | [CEG] ^F2 |]"
+					"L:1/8",
+					"K:Amin",
+					"Q:180",
+					"V:1 clef=treble name=\"Melody\"",
+					"[V:1]",
+					"!pp!\"Am\"A6D2|\"F\"A4G2A2|\"Dm\"c4B4|\"Em\"G8|",
+					"\"F\"F4E2F2|\"Em\"G4E4|\"G\"D8-|D8|",
+					"!p!\"Am\"A6D2|\"F\"A4G2A2|\"Dm\"c4B4|\"Em\"G8|",
+					"\"F\"F4E2F2|\"C\"G4C4|\"G\"D8-|D8|",
+					"!mf!\"F\"d4c4|\"G\"B4G4|\"Am\"ABA6|",
+					"\"C\"c2d2e4|\"F\"g4c4|\"E7\"d8-|d8|",
+					"!mp!\"Am\"C4B,4|\"F\"A,4G,4|\"Dm\"F,G,A,6|",
+					"\"C\"C2D2E4|\"Em\"G6CE|\"G\"D8-|D8|",
+					"!f!\"Am\"A2B2c4|\"F\"B4G4|\"Am\"A2B2c4|\"G\"d4B4|",
+					"\"Am\"A2B2c4|\"Em\"B4G4|\"Am\"A8-|A8|"
 				].join("\n"),
 				text: [
 					"T:Octave and Duration Example",
@@ -130,7 +172,17 @@
 			var preview = document.getElementById("preview");
 			var messages = document.getElementById("messages");
 			var renderButton = document.getElementById("render");
+			var printButton = document.getElementById("print");
 			var debounceTimer;
+			var playgroundTitle = document.title;
+			var printTitle = playgroundTitle;
+
+			function updatePrintTitle(header) {
+				var parts = [];
+				if (header && header.title) parts.push(header.title.trim());
+				if (header && header.composer) parts.push(header.composer.trim());
+				printTitle = parts.filter(Boolean).join(" - ") || playgroundTitle;
+			}
 
 			function showMessages(warnings) {
 				if (!warnings.length) {
@@ -151,9 +203,11 @@
 						? ABCJS.jianpu.fromAbc(input.value, options, ABCJS.parseOnly)
 						: ABCJS.jianpu.fromText(input.value, options);
 					preview.innerHTML = result.svg;
+					updatePrintTitle(result.layout && result.layout.header);
 					showMessages(result.warnings);
 				} catch (error) {
 					preview.innerHTML = "";
+					printTitle = playgroundTitle;
 					messages.className = "error";
 					messages.textContent = error.name + ": " + error.message;
 				}
@@ -175,6 +229,16 @@
 				scheduleRender();
 			});
 			renderButton.addEventListener("click", render);
+			printButton.addEventListener("click", function () {
+				render();
+				window.print();
+			});
+			window.addEventListener("beforeprint", function () {
+				document.title = printTitle;
+			});
+			window.addEventListener("afterprint", function () {
+				document.title = playgroundTitle;
+			});
 
 			input.value = drafts.abc;
 			render();
@@ -182,4 +246,3 @@
 	</script>
 </body>
 </html>
-

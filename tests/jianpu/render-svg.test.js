@@ -45,11 +45,15 @@ var svg = renderJianpuSvg(layout);
 
 assert.match(svg, /^<\?xml/);
 assert.match(svg, /<svg[\s\S]*<\/svg>$/);
+assert.match(svg, /"Times New Roman", "Noto Serif"/);
 assert.strictEqual((svg.match(/class="jianpu-number"/g) || []).length, 12);
 assert.strictEqual((svg.match(/class="jianpu-underline jianpu-beam"/g) || []).length, 1);
 assert.strictEqual((svg.match(/class="jianpu-extension"/g) || []).length, 2);
 assert.strictEqual((svg.match(/class="jianpu-bar"/g) || []).length, 4);
 assert.match(svg, /class="jianpu-accidental"[^>]*>♯<\/text>/);
+
+assert.match(svg, /class="jianpu-meter jianpu-meter-numerator"[^>]*>4<\/text>/);
+assert.match(svg, /class="jianpu-meter jianpu-meter-denominator"[^>]*>4<\/text>/);
 
 var outputDirectory = path.resolve(__dirname, "../../test-output");
 var outputPath = path.join(outputDirectory, "test-tune.svg");

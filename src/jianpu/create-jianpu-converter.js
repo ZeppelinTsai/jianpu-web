@@ -191,11 +191,16 @@ function createJianpuConverter(initialKey) {
 			}
 		}
 
-		return {
+		var convertedPitch = {
 			number: number,
 			octaveDots: octaveDots,
 			accidentalMark: accidentalMark,
 		};
+		if (pitch.startTie)
+			convertedPitch.tieStart = true;
+		if (pitch.endTie)
+			convertedPitch.tieEnd = true;
+		return convertedPitch;
 	}
 
 	function restEvent(marks) {
@@ -243,6 +248,27 @@ function createJianpuConverter(initialKey) {
 			notes: note.pitches.map(convertPitch),
 			durationMarks: durationMarks(representation),
 		};
+		if (note.chord) {
+			event.chordSymbols = note.chord.filter(function(chord) {
+				return chord && chord.name &&
+					(!chord.position || chord.position === "default" ||
+						(chord.position === "above" &&
+							!/^[1-5①②③④⑤]$/.test(chord.name)));
+			}).map(function(chord) {
+				return chord.name;
+			});
+			event.fingerings = note.chord.filter(function(chord) {
+				return chord && chord.position === "above" &&
+					/^[1-5①②③④⑤]$/.test(chord.name);
+			}).map(function(chord) {
+				return chord.name;
+			});
+		}
+		if (note.decoration) {
+			event.dynamics = note.decoration.filter(function(decoration) {
+				return /^(pppp|ppp|pp|p|mp|mf|f|ff|fff|ffff)$/.test(decoration);
+			});
+		}
 		if (note.startBeam || note.endBeam) {
 			event.beam = {
 				start: note.startBeam === true,

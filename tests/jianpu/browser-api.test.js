@@ -1,6 +1,8 @@
 "use strict";
 
 var assert = require("assert");
+var fs = require("fs");
+var path = require("path");
 var tuneBook = require("../../src/api/abc_tunebook");
 var jianpu = require("../../src/jianpu");
 
@@ -36,6 +38,29 @@ var abcWithWarning = jianpu.fromAbc(
 	tuneBook.parseOnly
 );
 assert.ok(abcWithWarning.warnings.length > 0);
+
+var fingeringResult = jianpu.fromAbc(
+	"X:1\nK:C\n\"^1\"c' |]",
+	{ staffWidth: 300 },
+	tuneBook.parseOnly
+);
+var fingeringEvent =
+	fingeringResult.layout.lines[0].measures[0].events[0];
+assert.strictEqual(fingeringEvent.annotations.fingerings[0].text, "1");
+assert.ok(
+	fingeringEvent.annotations.fingerings[0].cy <
+		fingeringEvent.notePositions[0].octaveDotPositions[0].cy
+);
+assert.match(fingeringResult.svg, /class="jianpu-fingering-circle"/);
+assert.match(fingeringResult.svg, /class="jianpu-fingering-text"[^>]*>1<\/text>/);
+
+var playground = fs.readFileSync(
+	path.resolve(__dirname, "../../jianpu-playground.html"),
+	"utf8"
+);
+assert.match(playground, /列印／儲存 PDF/);
+assert.match(playground, /@media print/);
+assert.match(playground, /window\.print\(\)/);
 
 console.log(JSON.stringify({
 	abc: {

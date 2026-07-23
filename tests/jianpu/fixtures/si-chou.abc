@@ -1,0 +1,18 @@
+X:1
+T:思愁
+C:ZeppelinTsai
+M:4/4
+L:1/8
+K:Amin
+Q:180
+V:1 clef=treble name="Melody"
+[V:1]
+!pp!"Am"A6D2|"F"A4G2A2|"Dm"c4B4|"Em"G8|
+"F"F4E2F2|"Em"G4E4|"G"D8-|D8|
+!p!"Am"A6D2|"F"A4G2A2|"Dm"c4B4|"Em"G8|
+"F"F4E2F2|"C"G4C4|"G"D8-|D8|
+!mf!"F"d4c4|"G"B4G4|"Am"ABA6|
+"C"c2d2e4|"F"g4c4|"E7"d8-|d8|
+!mp!"Am"C4B,4|"F"A,4G,4|"Dm"F,G,A,6|
+"C"C2D2E4|"Em"G6CE|"G"D8-|D8|
+!f!"Am"A2B2c4|"F"B4G4|"Am"A2B2c4|"G"d4B4|"Am"A2B2c4|"Em"B4G4|"Am"A8-|A8|

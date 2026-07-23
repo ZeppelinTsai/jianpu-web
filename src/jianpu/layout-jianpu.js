@@ -7,29 +7,41 @@ var DEFAULT_OPTIONS = {
 	paddingRight: 24,
 	paddingTop: 20,
 	paddingBottom: 20,
-	headerHeight: 72,
-	lineHeight: 104,
+	headerHeight: 80,
+	lineHeight: 102,
 	measurePadding: 10,
 	eventGap: 10,
+	minimumMeasurePadding: 2,
+	minimumEventGap: 2,
+	maximumFlexibleScale: 2.5,
 	numberFontSize: 22,
 	headerFontSize: 16,
+	showTempo: false,
 	titleFontSize: 24,
-	chordNoteGap: 25,
+	composerFontSize: 14,
+	measureNumberFontSize: 15,
+	fingeringFontSize: 11,
+	fingeringRadius: 8,
+	chordFontSize: 14,
+	dynamicFontSize: 13,
+	chordNoteGap: 22,
+	rhythmCellWidth: 26,
 	numberWidth: 14,
 	accidentalWidth: 14,
 	accidentalGap: 2,
 	accidentalRaise: 8,
 	octaveDotRadius: 2,
-	octaveDotGap: 6,
+	octaveDotGap: 5,
+	tieArcHeight: 10,
 	numberTopOffset: 23,
 	numberBottomOffset: 5,
-	underlineGap: 5,
-	underlineSpacing: 5,
+	underlineGap: 2,
+	underlineSpacing: 4,
 	durationDotWidth: 7,
 	durationDotRadius: 1.8,
-	extensionDashWidth: 18,
-	extensionDashGap: 4,
-	barGap: 8,
+	extensionLeadGap: 5,
+	extensionDashWidth: 16,
+	barGap: 14,
 	thinBarWidth: 1,
 	thickBarWidth: 4,
 };
@@ -88,13 +100,20 @@ function measureEvent(event, options, measureText) {
 
 	var marks = event.durationMarks;
 	var rightWidth =
-		marks.extensionDashes * options.extensionDashWidth +
-		Math.max(0, marks.extensionDashes - 1) * options.extensionDashGap +
+		(marks.extensionDashes ? options.extensionLeadGap : 0) +
+		marks.extensionDashes * options.rhythmCellWidth +
 		marks.dots * options.durationDotWidth;
+	var chordWidth = 0;
+	(event.chordSymbols || []).forEach(function(chord) {
+		chordWidth = Math.max(
+			chordWidth,
+			measureText(chord, { fontSize: options.chordFontSize })
+		);
+	});
 
 	return {
 		source: event,
-		naturalWidth: widestNote + rightWidth,
+		naturalWidth: Math.max(widestNote + rightWidth, chordWidth),
 		noteColumnWidth: widestNote,
 		rightWidth: rightWidth,
 	};
@@ -114,7 +133,15 @@ function groupMeasures(elements, options, measureText, warnings) {
 	var current = createMeasure(0);
 
 	elements.forEach(function(element) {
-		if (element && element.type === "bar") {
+		if (element && element.type === "line_break") {
+			if (current.events.length || current.endingBar) {
+				current.forceLineBreakAfter = true;
+				measures.push(current);
+				current = createMeasure(measures.length);
+			} else if (measures.length) {
+				measures[measures.length - 1].forceLineBreakAfter = true;
+			}
+		} else if (element && element.type === "bar") {
 			var requestedType = element.barType || "bar_thin";
 			var renderedType = requestedType;
 			if (!SUPPORTED_BARS[requestedType]) {
@@ -142,11 +169,12 @@ function groupMeasures(elements, options, measureText, warnings) {
 		}, 0);
 		var gapsWidth = Math.max(0, measure.events.length - 1) * options.eventGap;
 		var endingBarWidth = measure.endingBar ? measure.endingBar.width + options.barGap : 0;
-		measure.naturalWidth =
-			options.measurePadding * 2 +
-			eventsWidth +
-			gapsWidth +
-			endingBarWidth;
+		measure.fixedWidth = eventsWidth + endingBarWidth;
+		measure.naturalWidth = measure.fixedWidth +
+			options.measurePadding * 2 + gapsWidth;
+		measure.minimumWidth = measure.fixedWidth +
+			options.minimumMeasurePadding * 2 +
+			Math.max(0, measure.events.length - 1) * options.minimumEventGap;
 	});
 
 	return measures;
@@ -156,12 +184,15 @@ function wrapMeasures(measures, contentWidth, options, warnings) {
 	var lines = [];
 	var current = [];
 	var currentWidth = 0;
+	var currentMinimumWidth = 0;
 
 	function finishLine() {
 		if (current.length) {
 			lines.push({ measures: current, naturalWidth: currentWidth });
+			lines[lines.length - 1].minimumWidth = currentMinimumWidth;
 			current = [];
 			currentWidth = 0;
+			currentMinimumWidth = 0;
 		}
 	}
 
@@ -172,12 +203,12 @@ function wrapMeasures(measures, contentWidth, options, warnings) {
 		var widthReached =
 			!options.measuresPerLine &&
 			current.length > 0 &&
-			currentWidth + measure.naturalWidth > contentWidth;
+			currentMinimumWidth + measure.minimumWidth > contentWidth;
 
 		if (fixedCountReached || widthReached)
 			finishLine();
 
-		if (measure.naturalWidth > contentWidth) {
+		if (measure.minimumWidth > contentWidth) {
 			warnings.push(
 				"Measure " + (measure.index + 1) +
 				" is wider than the available content width and was kept intact."
@@ -186,6 +217,9 @@ function wrapMeasures(measures, contentWidth, options, warnings) {
 
 		current.push(measure);
 		currentWidth += measure.naturalWidth;
+		currentMinimumWidth += measure.minimumWidth;
+		if (measure.forceLineBreakAfter)
+			finishLine();
 	});
 
 	finishLine();
@@ -256,21 +290,73 @@ function mergeBeamUnderlines(measure, options) {
 	finishGroup();
 }
 
-function positionLine(line, lineIndex, options) {
+function positionLine(line, lineIndex, contentWidth, options) {
 	var lineTop = options.paddingTop + options.headerHeight + lineIndex * options.lineHeight;
 	var baselineY = lineTop + options.lineHeight * 0.62;
 	var cursorX = options.paddingLeft;
+	var fixedWidth = line.measures.reduce(function(sum, measure) {
+		return sum + measure.fixedWidth;
+	}, 0);
+	var naturalFlexibleWidth = line.naturalWidth - fixedWidth;
+	var minimumFlexibleWidth = line.minimumWidth - fixedWidth;
+	var availableFlexibleWidth = Math.max(
+		minimumFlexibleWidth,
+		contentWidth - fixedWidth
+	);
+	var measurePadding = options.measurePadding;
+	var eventGap = options.eventGap;
+
+	if (availableFlexibleWidth >= naturalFlexibleWidth) {
+		var growScale = Math.min(
+			options.maximumFlexibleScale,
+			availableFlexibleWidth / naturalFlexibleWidth
+		);
+		measurePadding *= growScale;
+		eventGap *= growScale;
+	} else {
+		var shrinkCapacity = naturalFlexibleWidth - minimumFlexibleWidth;
+		var shrinkFraction = shrinkCapacity > 0 ?
+			(naturalFlexibleWidth - availableFlexibleWidth) / shrinkCapacity : 1;
+		shrinkFraction = Math.max(0, Math.min(1, shrinkFraction));
+		measurePadding -=
+			(options.measurePadding - options.minimumMeasurePadding) * shrinkFraction;
+		eventGap -=
+			(options.eventGap - options.minimumEventGap) * shrinkFraction;
+	}
 
 	line.index = lineIndex;
 	line.y = lineTop;
 	line.height = options.lineHeight;
+	line.measureNumber = {
+		text: String(line.measures[0].index + 1),
+		x: Math.max(4, options.paddingLeft - 16),
+		y: lineTop + 27,
+	};
+	line.measurePadding = measurePadding;
+	line.eventGap = eventGap;
+	line.width = fixedWidth +
+		line.measures.length * measurePadding * 2 +
+		line.measures.reduce(function(sum, measure) {
+			return sum + Math.max(0, measure.events.length - 1) * eventGap;
+		}, 0);
+	// Centre every measure's note group between its left and right boundaries.
+	// Splitting the remaining line width equally across both sides of every
+	// measure avoids leaving a large one-sided gap after a bar line.
+	line.justifyMeasurePadding = line.measures.length ?
+		Math.max(0, contentWidth - line.width) / (line.measures.length * 2) : 0;
+	measurePadding += line.justifyMeasurePadding;
+	line.measurePadding = measurePadding;
+	line.width += line.justifyMeasurePadding * line.measures.length * 2;
 
 	line.measures.forEach(function(measure) {
 		measure.x = cursorX;
 		measure.y = lineTop;
-		measure.width = measure.naturalWidth;
+		measure.width = measure.fixedWidth +
+			measurePadding * 2 +
+			Math.max(0, measure.events.length - 1) * eventGap;
 
-		var eventX = cursorX + options.measurePadding;
+		var eventX = cursorX + measurePadding +
+			(measure.endingBar ? options.barGap / 2 : 0);
 		measure.events.forEach(function(event) {
 			event.x = eventX;
 			event.y = baselineY;
@@ -283,12 +369,22 @@ function positionLine(line, lineIndex, options) {
 				var noteY = baselineY - noteIndex * options.chordNoteGap;
 				var octaveDotPositions = [];
 				var octaveDotCount = Math.abs(note.octaveDots);
+				var eventUnderlines = event.source.durationMarks.underlines;
+				var lowDotBaseY = noteY + options.numberBottomOffset;
+				if (note.octaveDots < 0 && eventUnderlines > 0) {
+					lowDotBaseY =
+						noteY +
+						options.numberBottomOffset +
+						options.underlineGap +
+						(eventUnderlines - 1) * options.underlineSpacing +
+						options.octaveDotGap;
+				}
 				for (var dotIndex = 0; dotIndex < octaveDotCount; dotIndex++) {
 					octaveDotPositions.push({
 						cx: noteX,
 						cy: note.octaveDots > 0 ?
 							noteY - options.numberTopOffset - dotIndex * options.octaveDotGap :
-							noteY + options.numberBottomOffset + dotIndex * options.octaveDotGap,
+							lowDotBaseY + dotIndex * options.octaveDotGap,
 						r: options.octaveDotRadius,
 					});
 				}
@@ -300,6 +396,8 @@ function positionLine(line, lineIndex, options) {
 					number: note.number,
 					octaveDots: note.octaveDots,
 					accidentalMark: note.accidentalMark,
+					tieStart: note.tieStart === true,
+					tieEnd: note.tieEnd === true,
 					accidentalText: accidental,
 					accidentalPosition: accidental ? {
 						x: noteX - options.numberWidth / 2 - options.accidentalGap,
@@ -311,13 +409,30 @@ function positionLine(line, lineIndex, options) {
 
 			event.durationMarks = Object.assign({}, event.source.durationMarks);
 			event.beam = Object.assign({ start: false, end: false }, event.source.beam);
+			event.annotations = {
+				chords: (event.source.chordSymbols || []).map(function(chord, index) {
+					return {
+						text: chord,
+						x: eventX + event.noteColumnWidth / 2,
+						y: lineTop + 27 - index * (options.chordFontSize + 2),
+					};
+				}),
+				dynamics: [],
+				fingerings: (event.source.fingerings || []).map(
+					function(fingering, index) {
+						return {
+							text: fingering,
+							cx: eventX + event.noteColumnWidth / 2,
+							cy: lineTop + 9 - index * (options.fingeringRadius * 2 + 3),
+							r: options.fingeringRadius,
+						};
+					}
+				),
+			};
 			var lowestNote = event.notePositions[0];
-			var lowestBelowDots = lowestNote.octaveDots < 0 ?
-				Math.abs(lowestNote.octaveDots) : 0;
 			var underlineStartY =
 				lowestNote.y +
 				options.numberBottomOffset +
-				lowestBelowDots * options.octaveDotGap +
 				options.underlineGap;
 			event.durationLayout = {
 				underlines: [],
@@ -340,12 +455,15 @@ function positionLine(line, lineIndex, options) {
 			}
 
 			var rightCursor = eventX + event.noteColumnWidth;
+			if (event.durationMarks.extensionDashes)
+				rightCursor += options.extensionLeadGap;
 			for (var dashIndex = 0;
 				dashIndex < event.durationMarks.extensionDashes;
 				dashIndex++) {
 				var dashStart =
 					rightCursor +
-					dashIndex * (options.extensionDashWidth + options.extensionDashGap);
+					dashIndex * options.rhythmCellWidth +
+					(options.rhythmCellWidth - options.extensionDashWidth) / 2;
 				event.durationLayout.extensionDashes.push({
 					x1: dashStart,
 					x2: dashStart + options.extensionDashWidth,
@@ -356,9 +474,7 @@ function positionLine(line, lineIndex, options) {
 			}
 
 			rightCursor +=
-				event.durationMarks.extensionDashes * options.extensionDashWidth +
-				Math.max(0, event.durationMarks.extensionDashes - 1) *
-					options.extensionDashGap;
+				event.durationMarks.extensionDashes * options.rhythmCellWidth;
 			for (var durationDotIndex = 0;
 				durationDotIndex < event.durationMarks.dots;
 				durationDotIndex++) {
@@ -370,15 +486,29 @@ function positionLine(line, lineIndex, options) {
 					r: options.durationDotRadius,
 				});
 			}
+			(event.source.dynamics || []).forEach(function(dynamic, index) {
+				var lowestVisualY = underlineStartY +
+					Math.max(0, event.durationMarks.underlines - 1) *
+						options.underlineSpacing;
+				event.notePositions.forEach(function(note) {
+					note.octaveDotPositions.forEach(function(dot) {
+						lowestVisualY = Math.max(lowestVisualY, dot.cy + dot.r);
+					});
+				});
+				event.annotations.dynamics.push({
+					text: dynamic,
+					x: eventX + event.noteColumnWidth / 2,
+					y: lowestVisualY + 14 + index * (options.dynamicFontSize + 2),
+				});
+			});
 
 			delete event.source;
-			eventX += event.width + options.eventGap;
+			eventX += event.width + eventGap;
 		});
 		mergeBeamUnderlines(measure, options);
 
 		if (measure.endingBar) {
-			var barX = cursorX + measure.width - options.measurePadding -
-				measure.endingBar.width;
+			var barX = cursorX + measure.width - measure.endingBar.width;
 			measure.endingBar.x = barX;
 			measure.endingBar.y1 = lineTop + 12;
 			measure.endingBar.y2 = lineTop + options.lineHeight - 18;
@@ -422,6 +552,79 @@ function positionLine(line, lineIndex, options) {
 	});
 }
 
+function tieSignature(note) {
+	return note.number + ":" + note.octaveDots;
+}
+
+function tiePath(startX, endX, y, arcHeight) {
+	var middleX = (startX + endX) / 2;
+	return "M " + startX + " " + y +
+		" C " + middleX + " " + (y - arcHeight) +
+		", " + middleX + " " + (y - arcHeight) +
+		", " + endX + " " + y;
+}
+
+function tieAnchorY(note, options) {
+	var anchorY = note.y - options.numberTopOffset;
+	note.octaveDotPositions.forEach(function(dot) {
+		if (dot.cy < note.y)
+			anchorY = Math.min(anchorY, dot.cy - dot.r - 3);
+	});
+	return anchorY;
+}
+
+function layoutTies(lines, options, warnings) {
+	var pending = new Map();
+	lines.forEach(function(line) {
+		line.tiePaths = [];
+		line.measures.forEach(function(measure) {
+			measure.events.forEach(function(event) {
+				event.notePositions.forEach(function(note) {
+					var signature = tieSignature(note);
+					if (note.tieEnd) {
+						var start = pending.get(signature);
+						if (!start) {
+							warnings.push("Tie end for " + signature +
+								" has no matching start.");
+						} else if (start.line === line) {
+							var sameLineY = Math.min(
+								tieAnchorY(start.note, options),
+								tieAnchorY(note, options)
+							);
+							line.tiePaths.push({
+								d: tiePath(start.note.x + 6, note.x - 6,
+									sameLineY, options.tieArcHeight),
+							});
+							pending.delete(signature);
+						} else {
+							var startLineEnd = start.line.measures[
+								start.line.measures.length - 1
+							];
+							var outgoingEndX = startLineEnd.x + startLineEnd.width - 5;
+							start.line.tiePaths.push({
+								d: tiePath(start.note.x + 6, outgoingEndX,
+									tieAnchorY(start.note, options),
+									options.tieArcHeight),
+							});
+							line.tiePaths.push({
+								d: tiePath(options.paddingLeft + 5, note.x - 6,
+									tieAnchorY(note, options),
+									options.tieArcHeight),
+							});
+							pending.delete(signature);
+						}
+					}
+					if (note.tieStart)
+						pending.set(signature, { note: note, line: line });
+				});
+			});
+		});
+	});
+	pending.forEach(function(value, signature) {
+		warnings.push("Tie start for " + signature + " has no matching end.");
+	});
+}
+
 /**
  * Lay out converted jianpu events without requiring a browser DOM.
  *
@@ -442,8 +645,24 @@ function layoutJianpu(elements, options, measureText) {
 	var measures = groupMeasures(elements || [], options, measureText, warnings);
 	var lines = wrapMeasures(measures, contentWidth, options, warnings);
 	lines.forEach(function(line, index) {
-		positionLine(line, index, options);
+		positionLine(line, index, contentWidth, options);
 	});
+	layoutTies(lines, options, warnings);
+	var infoX = options.paddingLeft;
+	var infoY = options.paddingTop + options.headerHeight - 12;
+	var keyLabel = options.keyLabel || "";
+	var meterLabel = options.meterLabel || "";
+	var meterParts = /^(\d+)\s*\/\s*(\d+)$/.exec(meterLabel);
+	var keyWidth = keyLabel ?
+		measureText(keyLabel, { fontSize: options.headerFontSize }) : 0;
+	var meterFontSize = options.headerFontSize * 0.78;
+	var meterWidth = meterParts ? Math.max(
+		measureText(meterParts[1], { fontSize: meterFontSize }),
+		measureText(meterParts[2], { fontSize: meterFontSize })
+	) : measureText(meterLabel, { fontSize: options.headerFontSize });
+	var meterCenterX = infoX + keyWidth + (keyLabel ? 10 : 0) + meterWidth / 2;
+	var meterTextX = infoX + keyWidth + (keyLabel ? 10 : 0);
+	var tempoX = meterTextX + (meterLabel ? meterWidth + 12 : 0);
 
 	return {
 		width: options.staffWidth,
@@ -454,21 +673,60 @@ function layoutJianpu(elements, options, measureText) {
 			options.paddingBottom,
 		header: {
 			title: options.title || "",
-			keyLabel: options.keyLabel || "",
-			meterLabel: options.meterLabel || "",
+			keyLabel: keyLabel,
+			meterLabel: meterLabel,
+			composer: options.composer || "",
+			tempoLabel: options.tempoLabel || "",
 			titlePosition: {
 				x: options.staffWidth / 2,
 				y: options.paddingTop + options.titleFontSize,
 			},
 			infoPosition: {
-				x: options.paddingLeft,
-				y: options.paddingTop + options.headerHeight - 12,
+				x: infoX,
+				y: infoY,
+			},
+			keyPosition: {
+				x: infoX,
+				y: infoY,
+			},
+			meterPosition: meterParts ? {
+				numerator: meterParts[1],
+				denominator: meterParts[2],
+				x: meterCenterX,
+				numeratorY: infoY - 10,
+				denominatorY: infoY + 7,
+				fractionLine: {
+					x1: meterCenterX - meterWidth / 2 - 1,
+					x2: meterCenterX + meterWidth / 2 + 1,
+					y1: infoY - 5,
+					y2: infoY - 5,
+					strokeWidth: 1,
+				},
+			} : null,
+			meterTextPosition: {
+				x: meterTextX,
+				y: infoY,
+			},
+			tempoPosition: {
+				x: tempoX,
+				y: infoY,
+			},
+			showTempo: options.showTempo === true,
+			composerPosition: {
+				x: options.staffWidth - options.paddingRight,
+				y: options.paddingTop + options.titleFontSize + 24,
 			},
 		},
 		style: {
 			numberFontSize: options.numberFontSize,
 			headerFontSize: options.headerFontSize,
+			meterFontSize: meterFontSize,
 			titleFontSize: options.titleFontSize,
+			composerFontSize: options.composerFontSize,
+			measureNumberFontSize: options.measureNumberFontSize,
+			fingeringFontSize: options.fingeringFontSize,
+			chordFontSize: options.chordFontSize,
+			dynamicFontSize: options.dynamicFontSize,
 		},
 		lines: lines,
 		warnings: warnings,

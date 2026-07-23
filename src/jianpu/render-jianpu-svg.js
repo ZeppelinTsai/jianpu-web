@@ -30,13 +30,15 @@ function circleSvg(circle, className) {
  * alter coordinates.
  *
  * @param {{width:number,height:number,header:Object,style:Object,lines:Array}} layout
- * @param {{fontFamily?:string,className?:string}} options
+ * @param {{fontFamily?:string,notationFontFamily?:string,className?:string}} options
  * @returns {string}
  */
 function renderJianpuSvg(layout, options) {
 	options = options || {};
 	var fontFamily = options.fontFamily ||
 		'"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif';
+	var notationFontFamily = options.notationFontFamily ||
+		'"Times New Roman", "Noto Serif", "Noto Serif Symbols", Georgia, serif';
 	var className = options.className || "abcjs-jianpu";
 	var output = [];
 
@@ -49,8 +51,11 @@ function renderJianpuSvg(layout, options) {
 		escapeXml(layout.header.title || "Jianpu notation") + '">');
 	output.push("<style>" +
 		".abcjs-jianpu{background:#fff;color:#111}" +
-		".jianpu-number,.jianpu-header,.jianpu-title,.jianpu-accidental{" +
+		".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" +
 		"font-family:" + fontFamily + ";fill:currentColor}" +
+		".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," +
+		".jianpu-measure-number,.jianpu-fingering-text{" +
+		"font-family:" + notationFontFamily + ";fill:currentColor}" +
 		".jianpu-number{text-anchor:middle;font-size:" +
 		number(layout.style.numberFontSize) + "px}" +
 		".jianpu-accidental{text-anchor:end;font-size:" +
@@ -58,9 +63,24 @@ function renderJianpuSvg(layout, options) {
 		".jianpu-title{text-anchor:middle;font-size:" +
 		number(layout.style.titleFontSize) + "px;font-weight:600}" +
 		".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" +
+		".jianpu-meter{text-anchor:middle;font-size:" +
+		number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) +
+		"px;font-weight:600}" +
+		".jianpu-composer{text-anchor:end;font-size:" +
+		number(layout.style.composerFontSize) + "px;font-style:italic}" +
+		".jianpu-chord{text-anchor:middle;font-size:" +
+		number(layout.style.chordFontSize) + "px;font-weight:600}" +
+		".jianpu-dynamic{text-anchor:middle;font-size:" +
+		number(layout.style.dynamicFontSize) + "px;font-style:italic}" +
+		".jianpu-measure-number{font-size:" +
+		number(layout.style.measureNumberFontSize) + "px;font-weight:600}" +
+		".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" +
+		"font-size:" + number(layout.style.fingeringFontSize) + "px}" +
 		".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" +
-		".jianpu-underline,.jianpu-extension,.jianpu-bar{" +
+		".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" +
+		".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" +
 		"stroke:currentColor;fill:none;stroke-linecap:butt}" +
+		".jianpu-meter-line{stroke:currentColor;fill:none}" +
 		"</style>");
 
 	if (layout.header.title) {
@@ -69,22 +89,52 @@ function renderJianpuSvg(layout, options) {
 			number(layout.header.titlePosition.y) + '">' +
 			escapeXml(layout.header.title) + "</text>");
 	}
+	if (layout.header.composer) {
+		output.push('<text class="jianpu-composer" x="' +
+			number(layout.header.composerPosition.x) + '" y="' +
+			number(layout.header.composerPosition.y) + '">' +
+			escapeXml(layout.header.composer) + "</text>");
+	}
 
-	var headerParts = [];
-	if (layout.header.keyLabel)
-		headerParts.push(layout.header.keyLabel);
-	if (layout.header.meterLabel)
-		headerParts.push(layout.header.meterLabel);
-	if (headerParts.length) {
+	if (layout.header.keyLabel) {
 		output.push('<text class="jianpu-header" x="' +
-			number(layout.header.infoPosition.x) + '" y="' +
-			number(layout.header.infoPosition.y) + '">' +
-			escapeXml(headerParts.join("    ")) + "</text>");
+			number(layout.header.keyPosition.x) + '" y="' +
+			number(layout.header.keyPosition.y) + '">' +
+			escapeXml(layout.header.keyLabel) + "</text>");
+	}
+	if (layout.header.meterPosition) {
+		output.push('<text class="jianpu-meter jianpu-meter-numerator" x="' +
+			number(layout.header.meterPosition.x) + '" y="' +
+			number(layout.header.meterPosition.numeratorY) + '">' +
+			escapeXml(layout.header.meterPosition.numerator) + "</text>");
+		output.push('<text class="jianpu-meter jianpu-meter-denominator" x="' +
+			number(layout.header.meterPosition.x) + '" y="' +
+			number(layout.header.meterPosition.denominatorY) + '">' +
+			escapeXml(layout.header.meterPosition.denominator) + "</text>");
+		output.push(lineSvg(
+			layout.header.meterPosition.fractionLine,
+			"jianpu-meter-line"
+		));
+	} else if (layout.header.meterLabel) {
+		output.push('<text class="jianpu-header" x="' +
+			number(layout.header.meterTextPosition.x) + '" y="' +
+			number(layout.header.meterTextPosition.y) + '">' +
+			escapeXml(layout.header.meterLabel) + "</text>");
+	}
+	if (layout.header.showTempo && layout.header.tempoLabel) {
+		output.push('<text class="jianpu-header" x="' +
+			number(layout.header.tempoPosition.x) + '" y="' +
+			number(layout.header.tempoPosition.y) + '">' +
+			escapeXml(layout.header.tempoLabel) + "</text>");
 	}
 
 	layout.lines.forEach(function(layoutLine) {
 		output.push('<g class="jianpu-line" data-line="' +
 			(layoutLine.index + 1) + '">');
+		output.push('<text class="jianpu-measure-number" x="' +
+			number(layoutLine.measureNumber.x) + '" y="' +
+			number(layoutLine.measureNumber.y) + '">' +
+			escapeXml(layoutLine.measureNumber.text) + "</text>");
 		layoutLine.measures.forEach(function(measure) {
 			output.push('<g class="jianpu-measure" data-measure="' +
 				(measure.index + 1) + '">');
@@ -103,6 +153,24 @@ function renderJianpuSvg(layout, options) {
 					note.octaveDotPositions.forEach(function(dot) {
 						output.push(circleSvg(dot, "jianpu-octave-dot"));
 					});
+				});
+				event.annotations.chords.forEach(function(annotation) {
+					output.push('<text class="jianpu-chord" x="' +
+						number(annotation.x) + '" y="' + number(annotation.y) + '">' +
+						escapeXml(annotation.text) + "</text>");
+				});
+				event.annotations.dynamics.forEach(function(annotation) {
+					output.push('<text class="jianpu-dynamic" x="' +
+						number(annotation.x) + '" y="' + number(annotation.y) + '">' +
+						escapeXml(annotation.text) + "</text>");
+				});
+				event.annotations.fingerings.forEach(function(annotation) {
+					output.push('<circle class="jianpu-fingering-circle" cx="' +
+						number(annotation.cx) + '" cy="' + number(annotation.cy) +
+						'" r="' + number(annotation.r) + '"/>');
+					output.push('<text class="jianpu-fingering-text" x="' +
+						number(annotation.cx) + '" y="' + number(annotation.cy) + '">' +
+						escapeXml(annotation.text) + "</text>");
 				});
 				event.durationLayout.underlines.forEach(function(line) {
 					output.push(lineSvg(line, "jianpu-underline"));
@@ -124,6 +192,10 @@ function renderJianpuSvg(layout, options) {
 				});
 			}
 			output.push("</g>");
+		});
+		layoutLine.tiePaths.forEach(function(tie) {
+			output.push('<path class="jianpu-tie" d="' + escapeXml(tie.d) +
+				'" stroke-width="1.2"/>');
 		});
 		output.push("</g>");
 	});

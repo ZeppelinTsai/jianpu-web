@@ -57,12 +57,31 @@ assert.strictEqual(layout.lines.reduce(function(sum, line) {
 	}, 0);
 }, 0), 10);
 layout.lines.forEach(function(line) {
-	assert.ok(line.naturalWidth <= 252);
+	assert.ok(line.width <= 252 + 1e-9);
+});
+var justifiedLine = layout.lines[0];
+assert.ok(justifiedLine.justifyMeasurePadding >= 0);
+assert.ok(Math.abs(justifiedLine.width - 252) < 1e-9);
+assert.ok(Math.abs(
+	justifiedLine.measures[1].x -
+		(justifiedLine.measures[0].x + justifiedLine.measures[0].width)
+) < 1e-9);
+justifiedLine.measures.forEach(function(measure) {
+	var firstEvent = measure.events[0];
+	var lastEvent = measure.events[measure.events.length - 1];
+	var leftSpace = firstEvent.x - measure.x;
+	var rightSpace = measure.endingBar.x -
+		(lastEvent.x + lastEvent.width);
+	assert.ok(Math.abs(leftSpace - rightSpace) < 1e-9);
 });
 assert.deepStrictEqual(layout.warnings, []);
-assert.strictEqual(layout.lines[0].measures[1].beamLines.length, 1);
-assert.strictEqual(layout.lines[0].measures[1].beamLines[0].x1, 191);
-assert.strictEqual(layout.lines[0].measures[1].beamLines[0].x2, 229);
+var beamedMeasure = layout.lines[0].measures[1];
+assert.strictEqual(beamedMeasure.beamLines.length, 1);
+assert.strictEqual(beamedMeasure.beamLines[0].x1, beamedMeasure.events[1].x);
+assert.strictEqual(
+	beamedMeasure.beamLines[0].x2,
+	beamedMeasure.events[2].x + beamedMeasure.events[2].noteColumnWidth
+);
 
 var fixedCountLayout = layoutJianpu(elements, {
 	staffWidth: 800,
@@ -71,6 +90,57 @@ var fixedCountLayout = layoutJianpu(elements, {
 assert.deepStrictEqual(fixedCountLayout.lines.map(function(line) {
 	return line.measures.length;
 }), [1, 1, 1]);
+
+var lowOctaveUnderlineLayout = layoutJianpu([
+	{
+		notes: [{ number: 6, octaveDots: -1, accidentalMark: null }],
+		durationMarks: { extensionDashes: 0, underlines: 1, dots: 0 },
+	},
+	{ type: "bar", barType: "bar_thin" },
+], { staffWidth: 300 });
+var lowOctaveEvent = lowOctaveUnderlineLayout.lines[0].measures[0].events[0];
+assert.ok(
+	lowOctaveEvent.durationLayout.underlines[0].y1 <
+		lowOctaveEvent.notePositions[0].octaveDotPositions[0].cy
+);
+
+var extensionCellLayout = layoutJianpu([{
+	notes: [{ number: 5, octaveDots: 0, accidentalMark: null }],
+	durationMarks: { extensionDashes: 3, underlines: 0, dots: 0 },
+}], { staffWidth: 300 });
+var extensionLines =
+	extensionCellLayout.lines[0].measures[0].events[0]
+		.durationLayout.extensionDashes;
+assert.strictEqual(extensionLines.length, 3);
+assert.strictEqual(
+	extensionLines[1].x1 - extensionLines[0].x1,
+	layoutJianpu.DEFAULT_OPTIONS.rhythmCellWidth
+);
+assert.strictEqual(
+	extensionLines[2].x1 - extensionLines[1].x1,
+	layoutJianpu.DEFAULT_OPTIONS.rhythmCellWidth
+);
+
+var tieLayout = layoutJianpu([
+	{
+		notes: [{
+			number: 5, octaveDots: 0, accidentalMark: null, tieStart: true,
+		}],
+		durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
+	},
+	{
+		notes: [{
+			number: 5, octaveDots: 0, accidentalMark: null, tieEnd: true,
+		}],
+		durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
+	},
+], { staffWidth: 300 });
+var tiedNote = tieLayout.lines[0].measures[0].events[0].notePositions[0];
+var tieStartY = Number(tieLayout.lines[0].tiePaths[0].d.split(" ")[2]);
+assert.strictEqual(
+	tieStartY,
+	tiedNote.y - layoutJianpu.DEFAULT_OPTIONS.numberTopOffset
+);
 
 console.log(JSON.stringify({
 	width: layout.width,

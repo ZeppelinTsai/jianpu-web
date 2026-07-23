@@ -78,5 +78,6 @@ abcjs.synth = {
 
 abcjs['Editor'] = require('./src/edit/abc_editor');
 abcjs['EditArea'] = require('./src/edit/abc_editarea');
+abcjs.jianpu = require('./src/jianpu');
 
 module.exports = abcjs;

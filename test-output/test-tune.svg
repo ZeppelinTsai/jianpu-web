@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" class="abcjs-jianpu" width="800" height="216" viewBox="0 0 800 216" role="img" aria-label="Test Tune">
+<style>.abcjs-jianpu{background:#fff;color:#111}.jianpu-number,.jianpu-header,.jianpu-title,.jianpu-accidental{font-family:"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif;fill:currentColor}.jianpu-number{text-anchor:middle;font-size:22px}.jianpu-accidental{text-anchor:end;font-size:15.4px}.jianpu-title{text-anchor:middle;font-size:24px;font-weight:600}.jianpu-header{font-size:16px}.jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}.jianpu-underline,.jianpu-extension,.jianpu-bar{stroke:currentColor;fill:none;stroke-linecap:butt}</style>
+<text class="jianpu-title" x="400" y="44">Test Tune</text>
+<text class="jianpu-header" x="24" y="80">1=C    4/4</text>
+<g class="jianpu-line" data-line="1">
+<g class="jianpu-measure" data-measure="1">
+<g class="jianpu-event">
+<text class="jianpu-number" x="41" y="156.48">1</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="65" y="156.48">2</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="89" y="156.48">3</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="113" y="156.48">4</text>
+</g>
+<line class="jianpu-bar" x1="128" y1="104" x2="128" y2="178" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="2">
+<g class="jianpu-event">
+<text class="jianpu-number" x="156" y="156.48">5</text>
+<line class="jianpu-extension" x1="163" y1="151.48" x2="181" y2="151.48" stroke-width="1.5"/>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="198" y="156.48">6</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="222" y="156.48">7</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-number" x="246" y="156.48">0</text>
+</g>
+<line class="jianpu-underline jianpu-beam" x1="191" y1="166.48" x2="229" y2="166.48" stroke-width="1.4"/>
+<line class="jianpu-bar" x1="261" y1="104" x2="261" y2="178" stroke-width="1"/>
+</g>
+<g class="jianpu-measure" data-measure="3">
+<g class="jianpu-event">
+<text class="jianpu-number" x="289" y="156.48">1</text>
+<text class="jianpu-number" x="289" y="131.48">3</text>
+<text class="jianpu-number" x="289" y="106.48">5</text>
+</g>
+<g class="jianpu-event">
+<text class="jianpu-accidental" x="311.6" y="148.48">♯</text>
+<text class="jianpu-number" x="320.6" y="156.48">4</text>
+<line class="jianpu-extension" x1="335.2" y1="151.48" x2="353.2" y2="151.48" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="361.2" y1="104" x2="361.2" y2="178" stroke-width="1"/>
+<line class="jianpu-bar" x1="369.2" y1="104" x2="369.2" y2="178" stroke-width="4"/>
+</g>
+</g>
+</svg>

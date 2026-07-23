@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>ABCJS 簡譜 Playground</title>
+	<script src="dist/abcjs-basic.js"></script>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 16px;
+			font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+			color: #222;
+			background: #f5f5f5;
+		}
+		h1 { margin: 0 0 12px; font-size: 20px; }
+		.toolbar {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 10px;
+		}
+		select, button { padding: 7px 10px; font: inherit; }
+		button { cursor: pointer; }
+		.workspace {
+			display: grid;
+			grid-template-columns: minmax(300px, 0.8fr) minmax(420px, 1.2fr);
+			gap: 14px;
+			min-height: calc(100vh - 90px);
+		}
+		.panel {
+			min-width: 0;
+			padding: 12px;
+			border: 1px solid #ccc;
+			background: white;
+		}
+		.panel h2 { margin: 0 0 8px; font-size: 15px; }
+		textarea {
+			width: 100%;
+			height: calc(100vh - 160px);
+			min-height: 420px;
+			padding: 10px;
+			border: 1px solid #aaa;
+			resize: vertical;
+			font: 14px/1.5 Consolas, "Courier New", monospace;
+			tab-size: 2;
+		}
+		#preview {
+			min-height: 240px;
+			overflow: auto;
+			border: 1px solid #ddd;
+			background: white;
+		}
+		#messages {
+			margin: 10px 0 0;
+			padding: 10px;
+			white-space: pre-wrap;
+			font: 13px/1.45 Consolas, "Courier New", monospace;
+			color: #7a5200;
+			background: #fff8dc;
+			border: 1px solid #e3ce87;
+		}
+		#messages.ok {
+			color: #35653b;
+			background: #effaf0;
+			border-color: #b9d8bc;
+		}
+		#messages.error {
+			color: #8b1e1e;
+			background: #fff0f0;
+			border-color: #e0aaaa;
+		}
+		@media (max-width: 850px) {
+			.workspace { grid-template-columns: 1fr; }
+			textarea { height: 360px; min-height: 260px; }
+		}
+	</style>
+</head>
+<body>
+	<h1>ABCJS 簡譜 Playground</h1>
+	<div class="toolbar">
+		<label for="mode">輸入模式</label>
+		<select id="mode">
+			<option value="abc">ABC 模式</option>
+			<option value="text">簡譜文字模式</option>
+		</select>
+		<button id="render" type="button">渲染</button>
+	</div>
+
+	<main class="workspace">
+		<section class="panel">
+			<h2>輸入</h2>
+			<textarea id="input" spellcheck="false" aria-label="樂譜輸入"></textarea>
+		</section>
+		<section class="panel">
+			<h2>簡譜 SVG</h2>
+			<div id="preview"></div>
+			<pre id="messages" class="ok">沒有 warnings</pre>
+		</section>
+	</main>
+
+	<script>
+		(function () {
+			"use strict";
+
+			var examples = {
+				abc: [
+					"X:1",
+					"T:Test Tune",
+					"M:4/4",
+					"L:1/4",
+					"K:C",
+					"C D E F | G2 A/B/ z | [CEG] ^F2 |]"
+				].join("\n"),
+				text: [
+					"T:Octave and Duration Example",
+					"M:4/4",
+					"K:C",
+					"1, 2,, 3 4' | 5'' 6_ 7_ 1- | 2. 3__ 4__ 5- |",
+					"6.. 7__ 1- | 2--- | 0 0 0 0 |]"
+				].join("\n")
+			};
+			var drafts = {
+				abc: examples.abc,
+				text: examples.text
+			};
+			var mode = document.getElementById("mode");
+			var input = document.getElementById("input");
+			var preview = document.getElementById("preview");
+			var messages = document.getElementById("messages");
+			var renderButton = document.getElementById("render");
+			var debounceTimer;
+
+			function showMessages(warnings) {
+				if (!warnings.length) {
+					messages.className = "ok";
+					messages.textContent = "沒有 warnings";
+					return;
+				}
+				messages.className = "";
+				messages.textContent = warnings.map(function (warning, index) {
+					return (index + 1) + ". " + warning;
+				}).join("\n");
+			}
+
+			function render() {
+				try {
+					var options = { staffWidth: 800 };
+					var result = mode.value === "abc"
+						? ABCJS.jianpu.fromAbc(input.value, options, ABCJS.parseOnly)
+						: ABCJS.jianpu.fromText(input.value, options);
+					preview.innerHTML = result.svg;
+					showMessages(result.warnings);
+				} catch (error) {
+					preview.innerHTML = "";
+					messages.className = "error";
+					messages.textContent = error.name + ": " + error.message;
+				}
+			}
+
+			function scheduleRender() {
+				clearTimeout(debounceTimer);
+				debounceTimer = setTimeout(render, 220);
+			}
+
+			mode.addEventListener("change", function () {
+				var previousMode = mode.value === "abc" ? "text" : "abc";
+				drafts[previousMode] = input.value;
+				input.value = drafts[mode.value];
+				render();
+			});
+			input.addEventListener("input", function () {
+				drafts[mode.value] = input.value;
+				scheduleRender();
+			});
+			renderButton.addEventListener("click", render);
+
+			input.value = drafts.abc;
+			render();
+		}());
+	</script>
+</body>
+</html>
+

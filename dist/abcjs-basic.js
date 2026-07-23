@@ -88,6 +88,7 @@ abcjs.synth = {
 };
 abcjs['Editor'] = __webpack_require__(/*! ./src/edit/abc_editor */ "./src/edit/abc_editor.js");
 abcjs['EditArea'] = __webpack_require__(/*! ./src/edit/abc_editarea */ "./src/edit/abc_editarea.js");
+abcjs.jianpu = __webpack_require__(/*! ./src/jianpu */ "./src/jianpu/index.js");
 module.exports = abcjs;
 
 /***/ }),
@@ -2549,6 +2550,1108 @@ Editor.prototype.pauseMidi = function (shouldPause) {
   if (!shouldPause) this.redrawMidi();
 };
 module.exports = Editor;
+
+/***/ }),
+
+/***/ "./src/jianpu/create-jianpu-converter.js":
+/*!***********************************************!*\
+  !*** ./src/jianpu/create-jianpu-converter.js ***!
+  \***********************************************/
+/***/ (function(module) {
+
+"use strict";
+
+
+var DIATONIC_INDEX = {
+  C: 0,
+  D: 1,
+  E: 2,
+  F: 3,
+  G: 4,
+  A: 5,
+  B: 6
+};
+var VALID_ACCIDENTALS = {
+  sharp: true,
+  flat: true,
+  natural: true,
+  dblsharp: true,
+  dblflat: true
+};
+var EPSILON = 1e-9;
+var QUARTER = 0.25;
+function mod(value, divisor) {
+  return (value % divisor + divisor) % divisor;
+}
+function cloneKey(key) {
+  key = key || {};
+  return {
+    root: key.root || "C",
+    acc: key.acc || "",
+    mode: key.mode || "",
+    accidentals: (key.accidentals || []).map(function (accidental) {
+      return {
+        note: accidental.note,
+        acc: accidental.acc
+      };
+    })
+  };
+}
+function getRootLetter(key) {
+  var root = String(key.root || "C").match(/[A-Ga-g]/);
+  return root ? root[0].toUpperCase() : "C";
+}
+function isMinorKey(key) {
+  var mode = String(key.mode || "").toLowerCase();
+  return mode === "m" || mode === "min" || mode === "minor";
+}
+function buildKeyAccidentals(key) {
+  var result = new Map();
+  key.accidentals.forEach(function (accidental) {
+    if (!accidental || !accidental.note || !VALID_ACCIDENTALS[accidental.acc]) return;
+    result.set(String(accidental.note).replace(/[^A-Ga-g]/g, "").toUpperCase(), accidental.acc);
+  });
+  return result;
+}
+function pitchIdentity(pitch) {
+  var letter = getPitchLetter(pitch);
+  var absolutePitch = Number(pitch.pitch);
+  var octave = Math.floor(absolutePitch / 7);
+  return letter + ":" + octave;
+}
+function getPitchLetter(pitch) {
+  var fromName = String(pitch.name || "").match(/[A-Ga-g]/);
+  if (fromName) return fromName[0].toUpperCase();
+  return Object.keys(DIATONIC_INDEX)[mod(Number(pitch.pitch), 7)];
+}
+function dottedMultiplier(dots) {
+  return dots === 1 ? 1.5 : dots === 2 ? 1.75 : 1;
+}
+function findDurationRepresentation(duration) {
+  for (var dots = 0; dots <= 2; dots++) {
+    var base = duration / dottedMultiplier(dots);
+    var beats = base / QUARTER;
+    if (beats >= 1 && Math.abs(beats - Math.round(beats)) < EPSILON) {
+      return {
+        baseDuration: base,
+        extensionDashes: Math.round(beats) - 1,
+        underlines: 0,
+        dots: dots
+      };
+    }
+    if (beats < 1) {
+      var underlines = Math.log(1 / beats) / Math.log(2);
+      if (Math.abs(underlines - Math.round(underlines)) < EPSILON) {
+        return {
+          baseDuration: base,
+          extensionDashes: 0,
+          underlines: Math.round(underlines),
+          dots: dots
+        };
+      }
+    }
+  }
+  return null;
+}
+function durationMarks(representation) {
+  return {
+    extensionDashes: representation.extensionDashes,
+    underlines: representation.underlines,
+    dots: representation.dots
+  };
+}
+
+/**
+ * Create a stateful converter from ABCJS Tune AST notes to jianpu events.
+ *
+ * AccidentalMark:
+ * 'sharp'|'flat'|'natural'|'dblsharp'|'dblflat'|null
+ *
+ * JianpuEvent:
+ * {
+ *   notes: [{ number, octaveDots, accidentalMark }, ...],
+ *   durationMarks: { extensionDashes, underlines, dots }
+ * }
+ *
+ * @param {{root:string, acc:string, mode:string,
+ *   accidentals:Array<{note:string,acc:string}>}} initialKey
+ * @returns {{
+ *   context: {
+ *     key:Object,
+ *     keyAccidentals:Map,
+ *     measureAccidentals:Map,
+ *     warnings:string[]
+ *   },
+ *   convertNote:function(Object):Array<Object>,
+ *   getEffectiveAccidental:function(Object):(string|null),
+ *   resetBar:function():void,
+ *   setKey:function(Object):void
+ * }}
+ */
+function createJianpuConverter(initialKey) {
+  var context = {
+    key: cloneKey(initialKey),
+    keyAccidentals: new Map(),
+    measureAccidentals: new Map(),
+    warnings: []
+  };
+  function setKey(key) {
+    context.key = cloneKey(key);
+    context.keyAccidentals = buildKeyAccidentals(context.key);
+    context.measureAccidentals.clear();
+  }
+  function resetBar() {
+    context.measureAccidentals.clear();
+  }
+  function getEffectiveAccidental(pitch) {
+    var measureAccidental = context.measureAccidentals.get(pitchIdentity(pitch));
+    if (measureAccidental) return measureAccidental;
+    return context.keyAccidentals.get(getPitchLetter(pitch)) || null;
+  }
+  function convertPitch(pitch) {
+    var rootIndex = DIATONIC_INDEX[getRootLetter(context.key)];
+    var relativePitch = Number(pitch.pitch) - rootIndex;
+    var octaveDots = Math.floor(relativePitch / 7);
+    var tonicNumberOffset = isMinorKey(context.key) ? 5 : 0;
+    var number = mod(relativePitch + tonicNumberOffset, 7) + 1;
+    if (octaveDots < -2 || octaveDots > 2) {
+      context.warnings.push("Pitch " + (pitch.name || pitch.pitch) + " is " + Math.abs(octaveDots) + " octaves " + (octaveDots > 0 ? "above" : "below") + " the central jianpu octave.");
+      octaveDots = Math.max(-2, Math.min(2, octaveDots));
+    }
+    var accidentalMark = null;
+    if (pitch.accidental) {
+      if (VALID_ACCIDENTALS[pitch.accidental]) {
+        accidentalMark = pitch.accidental;
+        context.measureAccidentals.set(pitchIdentity(pitch), pitch.accidental);
+      } else {
+        context.warnings.push("Unsupported accidental: " + pitch.accidental);
+      }
+    }
+    return {
+      number: number,
+      octaveDots: octaveDots,
+      accidentalMark: accidentalMark
+    };
+  }
+  function restEvent(marks) {
+    return {
+      notes: [{
+        number: 0,
+        octaveDots: 0,
+        accidentalMark: null
+      }],
+      durationMarks: marks
+    };
+  }
+  function convertRest(representation) {
+    if (representation.extensionDashes === 0) return [restEvent(durationMarks(representation))];
+    var count = representation.extensionDashes + 1;
+    var marks = {
+      extensionDashes: 0,
+      underlines: 0,
+      dots: representation.dots
+    };
+    var events = [];
+    for (var i = 0; i < count; i++) {
+      events.push(restEvent(marks));
+    }
+    return events;
+  }
+  function convertNote(note) {
+    if (!note || note.el_type !== "note") throw new TypeError("convertNote expects an ABCJS note element.");
+    var representation = findDurationRepresentation(Number(note.duration));
+    if (!representation) {
+      context.warnings.push("Unsupported duration: " + note.duration);
+      return [];
+    }
+    if (note.rest) return convertRest(representation);
+    if (!Array.isArray(note.pitches) || note.pitches.length === 0) {
+      context.warnings.push("A non-rest note has no pitches.");
+      return [];
+    }
+    var event = {
+      notes: note.pitches.map(convertPitch),
+      durationMarks: durationMarks(representation)
+    };
+    if (note.startBeam || note.endBeam) {
+      event.beam = {
+        start: note.startBeam === true,
+        end: note.endBeam === true
+      };
+    }
+    return [event];
+  }
+  setKey(initialKey);
+  return {
+    context: context,
+    convertNote: convertNote,
+    getEffectiveAccidental: getEffectiveAccidental,
+    resetBar: resetBar,
+    setKey: setKey
+  };
+}
+module.exports = createJianpuConverter;
+
+/***/ }),
+
+/***/ "./src/jianpu/index.js":
+/*!*****************************!*\
+  !*** ./src/jianpu/index.js ***!
+  \*****************************/
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var createJianpuConverter = __webpack_require__(/*! ./create-jianpu-converter */ "./src/jianpu/create-jianpu-converter.js");
+var layoutJianpu = __webpack_require__(/*! ./layout-jianpu */ "./src/jianpu/layout-jianpu.js");
+var parseJianpu = __webpack_require__(/*! ./parse-jianpu */ "./src/jianpu/parse-jianpu.js");
+var renderJianpuSvg = __webpack_require__(/*! ./render-jianpu-svg */ "./src/jianpu/render-jianpu-svg.js");
+function keyLabelFromStaffKey(key) {
+  key = key || {};
+  var tonic = (key.root || "C") + (key.acc || "");
+  var mode = String(key.mode || "").toLowerCase();
+  var isMinor = mode === "m" || mode === "min" || mode === "minor";
+  return (isMinor ? "6=" : "1=") + tonic.replace(/#/g, "♯").replace(/b/g, "♭");
+}
+function keyLabelFromText(key) {
+  var value = String(key || "C").trim();
+  var minorMatch = value.match(/^([A-Ga-g])([#b]?)(?:m|min|minor)$/i);
+  if (minorMatch) return "6=" + (minorMatch[1].toUpperCase() + minorMatch[2]).replace(/#/g, "♯").replace(/b/g, "♭");
+  return "1=" + value.replace(/#/g, "♯").replace(/b/g, "♭");
+}
+function meterLabel(staff) {
+  var meter = staff && staff.meter;
+  if (!meter || !meter.value || !meter.value.length) return "";
+  return meter.value.map(function (value) {
+    return value.num + "/" + value.den;
+  }).join("+");
+}
+function findFirstStaff(tune) {
+  for (var i = 0; i < tune.lines.length; i++) {
+    if (tune.lines[i].staff && tune.lines[i].staff.length) return tune.lines[i].staff[0];
+  }
+  return null;
+}
+function convertAbcTune(tune) {
+  var firstStaff = findFirstStaff(tune);
+  if (!firstStaff) throw new Error("The ABC tune contains no staff.");
+  var converter = createJianpuConverter(firstStaff.key);
+  var elements = [];
+  var warnings = tune.warnings ? tune.warnings.slice() : [];
+  tune.lines.forEach(function (line) {
+    if (!line.staff || !line.staff[0]) return;
+    var staff = line.staff[0];
+    if (!staff.voices || !staff.voices[0]) return;
+    if (staff.voices.length > 1) warnings.push("Only the first voice is rendered in this playground.");
+    staff.voices[0].forEach(function (element) {
+      if (element.el_type === "bar") {
+        converter.resetBar();
+        elements.push({
+          type: "bar",
+          barType: element.type
+        });
+      } else if (element.el_type === "note") {
+        converter.convertNote(element).forEach(function (event) {
+          elements.push(event);
+        });
+      }
+    });
+  });
+  return {
+    elements: elements,
+    header: {
+      title: tune.metaText && tune.metaText.title || "",
+      keyLabel: keyLabelFromStaffKey(firstStaff.key),
+      meterLabel: meterLabel(firstStaff)
+    },
+    warnings: warnings.concat(converter.context.warnings)
+  };
+}
+function finish(elements, header, warnings, options) {
+  options = options || {};
+  var layoutOptions = Object.assign({}, options, {
+    title: header.title,
+    keyLabel: header.keyLabel,
+    meterLabel: header.meterLabel
+  });
+  var layout = layoutJianpu(elements, layoutOptions, options.measureText);
+  return {
+    svg: renderJianpuSvg(layout, options.svg),
+    layout: layout,
+    warnings: (warnings || []).concat(layout.warnings)
+  };
+}
+function fromAbc(abc, options, parseOnly) {
+  if (typeof parseOnly !== "function") throw new TypeError("fromAbc requires ABCJS.parseOnly as its third argument.");
+  var tunes = parseOnly(abc);
+  if (!tunes || !tunes.length) throw new Error("ABCJS.parseOnly returned no tunes.");
+  var converted = convertAbcTune(tunes[0]);
+  return finish(converted.elements, converted.header, converted.warnings, options);
+}
+function fromText(input, options) {
+  var parsed = parseJianpu(input);
+  return finish(parsed.elements, {
+    title: parsed.header.title,
+    keyLabel: keyLabelFromText(parsed.header.key),
+    meterLabel: parsed.header.meter
+  }, parsed.warnings, options);
+}
+module.exports = {
+  fromAbc: fromAbc,
+  fromText: fromText,
+  convertAbcTune: convertAbcTune,
+  createJianpuConverter: createJianpuConverter,
+  layoutJianpu: layoutJianpu,
+  parseJianpu: parseJianpu,
+  renderJianpuSvg: renderJianpuSvg
+};
+
+/***/ }),
+
+/***/ "./src/jianpu/layout-jianpu.js":
+/*!*************************************!*\
+  !*** ./src/jianpu/layout-jianpu.js ***!
+  \*************************************/
+/***/ (function(module) {
+
+"use strict";
+
+
+var DEFAULT_OPTIONS = {
+  staffWidth: 800,
+  measuresPerLine: undefined,
+  paddingLeft: 24,
+  paddingRight: 24,
+  paddingTop: 20,
+  paddingBottom: 20,
+  headerHeight: 72,
+  lineHeight: 104,
+  measurePadding: 10,
+  eventGap: 10,
+  numberFontSize: 22,
+  headerFontSize: 16,
+  titleFontSize: 24,
+  chordNoteGap: 25,
+  numberWidth: 14,
+  accidentalWidth: 14,
+  accidentalGap: 2,
+  accidentalRaise: 8,
+  octaveDotRadius: 2,
+  octaveDotGap: 6,
+  numberTopOffset: 23,
+  numberBottomOffset: 5,
+  underlineGap: 5,
+  underlineSpacing: 5,
+  durationDotWidth: 7,
+  durationDotRadius: 1.8,
+  extensionDashWidth: 18,
+  extensionDashGap: 4,
+  barGap: 8,
+  thinBarWidth: 1,
+  thickBarWidth: 4
+};
+var SUPPORTED_BARS = {
+  bar_thin: true,
+  bar_thin_thin: true,
+  bar_thin_thick: true,
+  bar_thick_thin: true
+};
+function mergeOptions(options) {
+  return Object.assign({}, DEFAULT_OPTIONS, options || {});
+}
+function defaultMeasureText(text, style) {
+  var fontSize = style && style.fontSize ? style.fontSize : DEFAULT_OPTIONS.numberFontSize;
+  return String(text).length * fontSize * 0.6;
+}
+function accidentalText(accidentalMark) {
+  switch (accidentalMark) {
+    case "sharp":
+      return "♯";
+    case "flat":
+      return "♭";
+    case "natural":
+      return "♮";
+    case "dblsharp":
+      return "𝄪";
+    case "dblflat":
+      return "𝄫";
+    default:
+      return "";
+  }
+}
+function barWidth(barType, options) {
+  switch (barType) {
+    case "bar_thin_thin":
+      return options.thinBarWidth * 2 + options.barGap;
+    case "bar_thin_thick":
+    case "bar_thick_thin":
+      return options.thinBarWidth + options.thickBarWidth + options.barGap;
+    default:
+      return options.thinBarWidth;
+  }
+}
+function measureEvent(event, options, measureText) {
+  var widestNote = options.numberWidth;
+  event.notes.forEach(function (note) {
+    var width = measureText(String(note.number), {
+      fontSize: options.numberFontSize
+    });
+    var accidental = accidentalText(note.accidentalMark);
+    if (accidental) width += Math.max(options.accidentalWidth, measureText(accidental, {
+      fontSize: options.numberFontSize * 0.7
+    })) + options.accidentalGap;
+    widestNote = Math.max(widestNote, width);
+  });
+  var marks = event.durationMarks;
+  var rightWidth = marks.extensionDashes * options.extensionDashWidth + Math.max(0, marks.extensionDashes - 1) * options.extensionDashGap + marks.dots * options.durationDotWidth;
+  return {
+    source: event,
+    naturalWidth: widestNote + rightWidth,
+    noteColumnWidth: widestNote,
+    rightWidth: rightWidth
+  };
+}
+function createMeasure(index) {
+  return {
+    index: index,
+    events: [],
+    endingBar: null,
+    naturalWidth: 0
+  };
+}
+function groupMeasures(elements, options, measureText, warnings) {
+  var measures = [];
+  var current = createMeasure(0);
+  elements.forEach(function (element) {
+    if (element && element.type === "bar") {
+      var requestedType = element.barType || "bar_thin";
+      var renderedType = requestedType;
+      if (!SUPPORTED_BARS[requestedType]) {
+        renderedType = "bar_thin";
+        warnings.push("Unsupported bar type " + requestedType + "; rendered as bar_thin.");
+      }
+      current.endingBar = {
+        sourceType: requestedType,
+        type: renderedType,
+        width: barWidth(renderedType, options)
+      };
+      measures.push(current);
+      current = createMeasure(measures.length);
+    } else if (element && Array.isArray(element.notes)) {
+      current.events.push(measureEvent(element, options, measureText));
+    }
+  });
+  if (current.events.length || current.endingBar) measures.push(current);
+  measures.forEach(function (measure) {
+    var eventsWidth = measure.events.reduce(function (sum, event) {
+      return sum + event.naturalWidth;
+    }, 0);
+    var gapsWidth = Math.max(0, measure.events.length - 1) * options.eventGap;
+    var endingBarWidth = measure.endingBar ? measure.endingBar.width + options.barGap : 0;
+    measure.naturalWidth = options.measurePadding * 2 + eventsWidth + gapsWidth + endingBarWidth;
+  });
+  return measures;
+}
+function wrapMeasures(measures, contentWidth, options, warnings) {
+  var lines = [];
+  var current = [];
+  var currentWidth = 0;
+  function finishLine() {
+    if (current.length) {
+      lines.push({
+        measures: current,
+        naturalWidth: currentWidth
+      });
+      current = [];
+      currentWidth = 0;
+    }
+  }
+  measures.forEach(function (measure) {
+    var fixedCountReached = options.measuresPerLine && current.length >= options.measuresPerLine;
+    var widthReached = !options.measuresPerLine && current.length > 0 && currentWidth + measure.naturalWidth > contentWidth;
+    if (fixedCountReached || widthReached) finishLine();
+    if (measure.naturalWidth > contentWidth) {
+      warnings.push("Measure " + (measure.index + 1) + " is wider than the available content width and was kept intact.");
+    }
+    current.push(measure);
+    currentWidth += measure.naturalWidth;
+  });
+  finishLine();
+  return lines;
+}
+function mergeBeamUnderlines(measure, options) {
+  measure.beamLines = [];
+  var activeGroup = [];
+  function finishGroup() {
+    if (activeGroup.length < 2) {
+      activeGroup = [];
+      return;
+    }
+    var maximumLevel = activeGroup.reduce(function (maximum, event) {
+      return Math.max(maximum, event.durationMarks.underlines);
+    }, 0);
+    var _loop = function _loop() {
+      run = [];
+      function finishRun() {
+        if (!run.length) return;
+        var y = run.reduce(function (maximum, event) {
+          var eventLine = event.durationLayout.underlines[level - 1];
+          return Math.max(maximum, eventLine.y1);
+        }, -Infinity);
+        measure.beamLines.push({
+          x1: run[0].x,
+          x2: run[run.length - 1].x + run[run.length - 1].noteColumnWidth,
+          y1: y,
+          y2: y,
+          strokeWidth: 1.4,
+          level: level
+        });
+        run = [];
+      }
+      activeGroup.forEach(function (event) {
+        if (event.durationMarks.underlines >= level) run.push(event);else finishRun();
+      });
+      finishRun();
+    };
+    for (var level = 1; level <= maximumLevel; level++) {
+      var run;
+      _loop();
+    }
+    activeGroup.forEach(function (event) {
+      event.durationLayout.underlines = [];
+    });
+    activeGroup = [];
+  }
+  measure.events.forEach(function (event) {
+    if (event.beam.start) {
+      finishGroup();
+      activeGroup = [event];
+    } else if (activeGroup.length) {
+      activeGroup.push(event);
+    }
+    if (activeGroup.length && event.beam.end) finishGroup();
+  });
+  finishGroup();
+}
+function positionLine(line, lineIndex, options) {
+  var lineTop = options.paddingTop + options.headerHeight + lineIndex * options.lineHeight;
+  var baselineY = lineTop + options.lineHeight * 0.62;
+  var cursorX = options.paddingLeft;
+  line.index = lineIndex;
+  line.y = lineTop;
+  line.height = options.lineHeight;
+  line.measures.forEach(function (measure) {
+    measure.x = cursorX;
+    measure.y = lineTop;
+    measure.width = measure.naturalWidth;
+    var eventX = cursorX + options.measurePadding;
+    measure.events.forEach(function (event) {
+      event.x = eventX;
+      event.y = baselineY;
+      event.width = event.naturalWidth;
+      event.notePositions = [];
+      var notes = event.source.notes;
+      notes.forEach(function (note, noteIndex) {
+        var noteX = eventX + event.noteColumnWidth / 2;
+        var noteY = baselineY - noteIndex * options.chordNoteGap;
+        var octaveDotPositions = [];
+        var octaveDotCount = Math.abs(note.octaveDots);
+        for (var dotIndex = 0; dotIndex < octaveDotCount; dotIndex++) {
+          octaveDotPositions.push({
+            cx: noteX,
+            cy: note.octaveDots > 0 ? noteY - options.numberTopOffset - dotIndex * options.octaveDotGap : noteY + options.numberBottomOffset + dotIndex * options.octaveDotGap,
+            r: options.octaveDotRadius
+          });
+        }
+        var accidental = accidentalText(note.accidentalMark);
+        event.notePositions.push({
+          x: noteX,
+          y: noteY,
+          number: note.number,
+          octaveDots: note.octaveDots,
+          accidentalMark: note.accidentalMark,
+          accidentalText: accidental,
+          accidentalPosition: accidental ? {
+            x: noteX - options.numberWidth / 2 - options.accidentalGap,
+            y: noteY - options.accidentalRaise
+          } : null,
+          octaveDotPositions: octaveDotPositions
+        });
+      });
+      event.durationMarks = Object.assign({}, event.source.durationMarks);
+      event.beam = Object.assign({
+        start: false,
+        end: false
+      }, event.source.beam);
+      var lowestNote = event.notePositions[0];
+      var lowestBelowDots = lowestNote.octaveDots < 0 ? Math.abs(lowestNote.octaveDots) : 0;
+      var underlineStartY = lowestNote.y + options.numberBottomOffset + lowestBelowDots * options.octaveDotGap + options.underlineGap;
+      event.durationLayout = {
+        underlines: [],
+        extensionDashes: [],
+        dots: []
+      };
+      for (var underlineIndex = 0; underlineIndex < event.durationMarks.underlines; underlineIndex++) {
+        var underlineY = underlineStartY + underlineIndex * options.underlineSpacing;
+        event.durationLayout.underlines.push({
+          x1: eventX,
+          x2: eventX + event.noteColumnWidth,
+          y1: underlineY,
+          y2: underlineY,
+          strokeWidth: 1.4
+        });
+      }
+      var rightCursor = eventX + event.noteColumnWidth;
+      for (var dashIndex = 0; dashIndex < event.durationMarks.extensionDashes; dashIndex++) {
+        var dashStart = rightCursor + dashIndex * (options.extensionDashWidth + options.extensionDashGap);
+        event.durationLayout.extensionDashes.push({
+          x1: dashStart,
+          x2: dashStart + options.extensionDashWidth,
+          y1: lowestNote.y - options.numberBottomOffset,
+          y2: lowestNote.y - options.numberBottomOffset,
+          strokeWidth: 1.5
+        });
+      }
+      rightCursor += event.durationMarks.extensionDashes * options.extensionDashWidth + Math.max(0, event.durationMarks.extensionDashes - 1) * options.extensionDashGap;
+      for (var durationDotIndex = 0; durationDotIndex < event.durationMarks.dots; durationDotIndex++) {
+        event.durationLayout.dots.push({
+          cx: rightCursor + options.durationDotWidth / 2 + durationDotIndex * options.durationDotWidth,
+          cy: lowestNote.y - options.numberBottomOffset,
+          r: options.durationDotRadius
+        });
+      }
+      delete event.source;
+      eventX += event.width + options.eventGap;
+    });
+    mergeBeamUnderlines(measure, options);
+    if (measure.endingBar) {
+      var barX = cursorX + measure.width - options.measurePadding - measure.endingBar.width;
+      measure.endingBar.x = barX;
+      measure.endingBar.y1 = lineTop + 12;
+      measure.endingBar.y2 = lineTop + options.lineHeight - 18;
+      measure.endingBar.lines = [];
+      if (measure.endingBar.type === "bar_thin_thin") {
+        measure.endingBar.lines.push({
+          x1: barX,
+          x2: barX,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thinBarWidth
+        }, {
+          x1: barX + options.barGap,
+          x2: barX + options.barGap,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thinBarWidth
+        });
+      } else if (measure.endingBar.type === "bar_thin_thick") {
+        measure.endingBar.lines.push({
+          x1: barX,
+          x2: barX,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thinBarWidth
+        }, {
+          x1: barX + options.barGap,
+          x2: barX + options.barGap,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thickBarWidth
+        });
+      } else if (measure.endingBar.type === "bar_thick_thin") {
+        measure.endingBar.lines.push({
+          x1: barX,
+          x2: barX,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thickBarWidth
+        }, {
+          x1: barX + options.barGap,
+          x2: barX + options.barGap,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thinBarWidth
+        });
+      } else {
+        measure.endingBar.lines.push({
+          x1: barX,
+          x2: barX,
+          y1: measure.endingBar.y1,
+          y2: measure.endingBar.y2,
+          strokeWidth: options.thinBarWidth
+        });
+      }
+    }
+    cursorX += measure.width;
+  });
+}
+
+/**
+ * Lay out converted jianpu events without requiring a browser DOM.
+ *
+ * @param {Array<Object>} elements JianpuEvent and bar objects in source order.
+ * @param {Object} options Fixed-width layout and header options.
+ * @param {Function} measureText Optional (text, style) => width callback.
+ * @returns {{width:number,height:number,header:Object,lines:Array,warnings:Array}}
+ */
+function layoutJianpu(elements, options, measureText) {
+  options = mergeOptions(options);
+  measureText = measureText || defaultMeasureText;
+  var warnings = [];
+  var contentWidth = options.staffWidth - options.paddingLeft - options.paddingRight;
+  if (contentWidth <= 0) throw new RangeError("staffWidth must be wider than the horizontal padding.");
+  var measures = groupMeasures(elements || [], options, measureText, warnings);
+  var lines = wrapMeasures(measures, contentWidth, options, warnings);
+  lines.forEach(function (line, index) {
+    positionLine(line, index, options);
+  });
+  return {
+    width: options.staffWidth,
+    height: options.paddingTop + options.headerHeight + lines.length * options.lineHeight + options.paddingBottom,
+    header: {
+      title: options.title || "",
+      keyLabel: options.keyLabel || "",
+      meterLabel: options.meterLabel || "",
+      titlePosition: {
+        x: options.staffWidth / 2,
+        y: options.paddingTop + options.titleFontSize
+      },
+      infoPosition: {
+        x: options.paddingLeft,
+        y: options.paddingTop + options.headerHeight - 12
+      }
+    },
+    style: {
+      numberFontSize: options.numberFontSize,
+      headerFontSize: options.headerFontSize,
+      titleFontSize: options.titleFontSize
+    },
+    lines: lines,
+    warnings: warnings
+  };
+}
+layoutJianpu.defaultMeasureText = defaultMeasureText;
+layoutJianpu.DEFAULT_OPTIONS = DEFAULT_OPTIONS;
+module.exports = layoutJianpu;
+
+/***/ }),
+
+/***/ "./src/jianpu/parse-jianpu.js":
+/*!************************************!*\
+  !*** ./src/jianpu/parse-jianpu.js ***!
+  \************************************/
+/***/ (function(module) {
+
+"use strict";
+
+
+var BAR_TYPES = {
+  "|]": "bar_thin_thick",
+  "||": "bar_thin_thin",
+  "[|": "bar_thick_thin",
+  "|": "bar_thin"
+};
+var ACCIDENTALS = {
+  "^^": "dblsharp",
+  "__": "dblflat",
+  "^": "sharp",
+  "_": "flat",
+  "=": "natural"
+};
+function JianpuSyntaxError(message, index, source) {
+  this.name = "JianpuSyntaxError";
+  this.message = message + " at character " + index + ".";
+  this.index = index;
+  this.source = source;
+  if (Error.captureStackTrace) Error.captureStackTrace(this, JianpuSyntaxError);
+}
+JianpuSyntaxError.prototype = Object.create(SyntaxError.prototype);
+JianpuSyntaxError.prototype.constructor = JianpuSyntaxError;
+function syntaxError(state, message) {
+  throw new JianpuSyntaxError(message, state.index, state.source);
+}
+function startsWithAt(source, value, index) {
+  return source.slice(index, index + value.length) === value;
+}
+function skipWhitespace(state) {
+  while (state.index < state.source.length && /\s/.test(state.source[state.index])) {
+    state.index++;
+  }
+}
+function parseAccidental(state) {
+  var symbols = ["^^", "__", "^", "_", "="];
+  for (var i = 0; i < symbols.length; i++) {
+    var symbol = symbols[i];
+    if (startsWithAt(state.source, symbol, state.index)) {
+      state.index += symbol.length;
+      return ACCIDENTALS[symbol];
+    }
+  }
+  return null;
+}
+function makeNote(number, octaveDots, accidentalMark) {
+  return {
+    number: number,
+    octaveDots: octaveDots,
+    accidentalMark: accidentalMark
+  };
+}
+function parseChord(state, accidentalMark) {
+  state.index++;
+  var numbers = [];
+  while (state.index < state.source.length && state.source[state.index] !== "]") {
+    var character = state.source[state.index];
+    if (character < "1" || character > "7") syntaxError(state, "A chord may contain only scale degrees 1 through 7");
+    numbers.push(Number(character));
+    state.index++;
+  }
+  if (state.index >= state.source.length) syntaxError(state, "Unclosed chord");
+  if (!numbers.length) syntaxError(state, "A chord must contain at least one note");
+  state.index++;
+  return numbers.map(function (number) {
+    return makeNote(number, 0, accidentalMark);
+  });
+}
+function parseNoteOrChord(state, accidentalMark) {
+  var character = state.source[state.index];
+  if (character === "[") return parseChord(state, accidentalMark);
+  if (character < "0" || character > "7") syntaxError(state, "Expected a scale degree 0 through 7 or a chord");
+  state.index++;
+  if (character === "0" && accidentalMark) syntaxError(state, "A rest cannot have an accidental");
+  return [makeNote(Number(character), 0, accidentalMark)];
+}
+function parseOctave(state, notes) {
+  var first = state.source[state.index];
+  if (first !== "'" && first !== ",") return;
+  var count = 0;
+  while (state.source[state.index] === first) {
+    count++;
+    state.index++;
+  }
+  if (state.source[state.index] === (first === "'" ? "," : "'")) syntaxError(state, "High and low octave marks cannot be mixed");
+  if (notes.length === 1 && notes[0].number === 0) syntaxError(state, "A rest cannot have octave marks");
+  var direction = first === "'" ? 1 : -1;
+  if (count > 2) {
+    state.warnings.push("Octave mark at character " + (state.index - count) + " exceeds two octaves and was limited to " + (direction > 0 ? "+2" : "-2") + ".");
+  }
+  notes.forEach(function (note) {
+    note.octaveDots = direction * Math.min(count, 2);
+  });
+}
+function parseDuration(state, isRest) {
+  var underlines = 0;
+  var extensionDashes = 0;
+  while (state.source[state.index] === "_") {
+    underlines++;
+    state.index++;
+  }
+  while (state.source[state.index] === "-") {
+    extensionDashes++;
+    state.index++;
+  }
+  if (underlines && extensionDashes) syntaxError(state, "Underlines and extension dashes cannot be mixed");
+  if (isRest && extensionDashes) syntaxError(state, "A rest cannot use extension dashes");
+  var dots = 0;
+  while (state.source[state.index] === ".") {
+    dots++;
+    state.index++;
+  }
+  if (dots > 2) syntaxError(state, "More than two augmentation dots are not supported");
+  return {
+    extensionDashes: extensionDashes,
+    underlines: underlines,
+    dots: dots
+  };
+}
+function parseEvent(state) {
+  var accidentalMark = parseAccidental(state);
+  var notes = parseNoteOrChord(state, accidentalMark);
+  parseOctave(state, notes);
+  var durationMarks = parseDuration(state, notes.length === 1 && notes[0].number === 0);
+  var next = state.source[state.index];
+  if (next && !/\s/.test(next) && next !== "|" && next !== "[") syntaxError(state, "Unexpected character " + JSON.stringify(next));
+  return {
+    notes: notes,
+    durationMarks: durationMarks
+  };
+}
+function parseBar(state) {
+  var symbols = ["|]", "||", "[|", "|"];
+  for (var i = 0; i < symbols.length; i++) {
+    var symbol = symbols[i];
+    if (startsWithAt(state.source, symbol, state.index)) {
+      state.index += symbol.length;
+      return {
+        type: "bar",
+        barType: BAR_TYPES[symbol]
+      };
+    }
+  }
+  return null;
+}
+function extractHeader(input) {
+  var header = {
+    title: "",
+    meter: "",
+    key: ""
+  };
+  var musicLines = [];
+  String(input).replace(/\r\n?/g, "\n").split("\n").forEach(function (line) {
+    var match = line.match(/^\s*([A-Za-z]):\s*(.*?)\s*$/);
+    if (!match) {
+      musicLines.push(line);
+      return;
+    }
+    switch (match[1].toUpperCase()) {
+      case "T":
+        header.title = match[2];
+        break;
+      case "M":
+        header.meter = match[2];
+        break;
+      case "K":
+        header.key = match[2];
+        break;
+      default:
+        break;
+    }
+  });
+  return {
+    header: header,
+    music: musicLines.join("\n")
+  };
+}
+
+/**
+ * Parse ABC-inspired numbered notation into the event stream accepted by
+ * layoutJianpu.
+ *
+ * @param {string} input
+ * @returns {{
+ *   header:{title:string,meter:string,key:string},
+ *   elements:Array<Object>,
+ *   warnings:Array<string>
+ * }}
+ */
+function parseJianpu(input) {
+  var extracted = extractHeader(input);
+  var state = {
+    source: extracted.music,
+    index: 0,
+    warnings: []
+  };
+  var elements = [];
+  while (state.index < state.source.length) {
+    skipWhitespace(state);
+    if (state.index >= state.source.length) break;
+    var bar = parseBar(state);
+    if (bar) {
+      elements.push(bar);
+      continue;
+    }
+    elements.push(parseEvent(state));
+  }
+  return {
+    header: extracted.header,
+    elements: elements,
+    warnings: state.warnings
+  };
+}
+parseJianpu.JianpuSyntaxError = JianpuSyntaxError;
+module.exports = parseJianpu;
+
+/***/ }),
+
+/***/ "./src/jianpu/render-jianpu-svg.js":
+/*!*****************************************!*\
+  !*** ./src/jianpu/render-jianpu-svg.js ***!
+  \*****************************************/
+/***/ (function(module) {
+
+"use strict";
+
+
+function escapeXml(value) {
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function number(value) {
+  return Number(value.toFixed(3));
+}
+function lineSvg(line, className) {
+  return '<line class="' + className + '" x1="' + number(line.x1) + '" y1="' + number(line.y1) + '" x2="' + number(line.x2) + '" y2="' + number(line.y2) + '" stroke-width="' + number(line.strokeWidth) + '"/>';
+}
+function circleSvg(circle, className) {
+  return '<circle class="' + className + '" cx="' + number(circle.cx) + '" cy="' + number(circle.cy) + '" r="' + number(circle.r) + '"/>';
+}
+
+/**
+ * Convert a completed layout model to SVG. This function does not lay out or
+ * alter coordinates.
+ *
+ * @param {{width:number,height:number,header:Object,style:Object,lines:Array}} layout
+ * @param {{fontFamily?:string,className?:string}} options
+ * @returns {string}
+ */
+function renderJianpuSvg(layout, options) {
+  options = options || {};
+  var fontFamily = options.fontFamily || '"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif';
+  var className = options.className || "abcjs-jianpu";
+  var output = [];
+  output.push('<?xml version="1.0" encoding="UTF-8"?>');
+  output.push('<svg xmlns="http://www.w3.org/2000/svg" class="' + escapeXml(className) + '" width="' + number(layout.width) + '" height="' + number(layout.height) + '" viewBox="0 0 ' + number(layout.width) + " " + number(layout.height) + '" role="img" aria-label="' + escapeXml(layout.header.title || "Jianpu notation") + '">');
+  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-number,.jianpu-header,.jianpu-title,.jianpu-accidental{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + "</style>");
+  if (layout.header.title) {
+    output.push('<text class="jianpu-title" x="' + number(layout.header.titlePosition.x) + '" y="' + number(layout.header.titlePosition.y) + '">' + escapeXml(layout.header.title) + "</text>");
+  }
+  var headerParts = [];
+  if (layout.header.keyLabel) headerParts.push(layout.header.keyLabel);
+  if (layout.header.meterLabel) headerParts.push(layout.header.meterLabel);
+  if (headerParts.length) {
+    output.push('<text class="jianpu-header" x="' + number(layout.header.infoPosition.x) + '" y="' + number(layout.header.infoPosition.y) + '">' + escapeXml(headerParts.join("    ")) + "</text>");
+  }
+  layout.lines.forEach(function (layoutLine) {
+    output.push('<g class="jianpu-line" data-line="' + (layoutLine.index + 1) + '">');
+    layoutLine.measures.forEach(function (measure) {
+      output.push('<g class="jianpu-measure" data-measure="' + (measure.index + 1) + '">');
+      measure.events.forEach(function (event) {
+        output.push('<g class="jianpu-event">');
+        event.notePositions.forEach(function (note) {
+          if (note.accidentalPosition) {
+            output.push('<text class="jianpu-accidental" x="' + number(note.accidentalPosition.x) + '" y="' + number(note.accidentalPosition.y) + '">' + escapeXml(note.accidentalText) + "</text>");
+          }
+          output.push('<text class="jianpu-number" x="' + number(note.x) + '" y="' + number(note.y) + '">' + note.number + "</text>");
+          note.octaveDotPositions.forEach(function (dot) {
+            output.push(circleSvg(dot, "jianpu-octave-dot"));
+          });
+        });
+        event.durationLayout.underlines.forEach(function (line) {
+          output.push(lineSvg(line, "jianpu-underline"));
+        });
+        event.durationLayout.extensionDashes.forEach(function (line) {
+          output.push(lineSvg(line, "jianpu-extension"));
+        });
+        event.durationLayout.dots.forEach(function (dot) {
+          output.push(circleSvg(dot, "jianpu-duration-dot"));
+        });
+        output.push("</g>");
+      });
+      measure.beamLines.forEach(function (line) {
+        output.push(lineSvg(line, "jianpu-underline jianpu-beam"));
+      });
+      if (measure.endingBar) {
+        measure.endingBar.lines.forEach(function (line) {
+          output.push(lineSvg(line, "jianpu-bar"));
+        });
+      }
+      output.push("</g>");
+    });
+    output.push("</g>");
+  });
+  output.push("</svg>");
+  return output.join("\n");
+}
+module.exports = renderJianpuSvg;
 
 /***/ }),
 

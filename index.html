@@ -142,6 +142,15 @@
         align-items: center;
         gap: 8px;
       }
+      #share .share-icon-copied {
+        display: none;
+      }
+      #share.copied .share-icon-default {
+        display: none;
+      }
+      #share.copied .share-icon-copied {
+        display: inline-block;
+      }
       .toolbar .play-option {
         display: inline-flex;
         align-items: center;
@@ -400,9 +409,8 @@
         .toolbar-actions {
           width: 100%;
         }
-        .toolbar-actions #print,
-        .toolbar-actions #help {
-          flex: 1 1 0;
+        .toolbar-actions button {
+          flex: 1 1 calc(50% - 4px);
           width: auto;
         }
         .panel {
@@ -591,6 +599,34 @@
             <i class="bi bi-question-circle" aria-hidden="true"></i>
             <span class="lang-zh">使用說明</span>
             <span class="lang-en">Help</span>
+          </button>
+          <button
+            id="share"
+            type="button"
+            class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
+          >
+            <i class="bi bi-link-45deg share-icon-default" aria-hidden="true"></i>
+            <i class="bi bi-check-lg share-icon-copied" aria-hidden="true"></i>
+            <span class="lang-zh">複製分享連結</span>
+            <span class="lang-en">Copy Share Link</span>
+          </button>
+          <button
+            id="export-midi"
+            type="button"
+            class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
+          >
+            <i class="bi bi-file-earmark-music" aria-hidden="true"></i>
+            <span class="lang-zh">匯出 MIDI</span>
+            <span class="lang-en">Export MIDI</span>
+          </button>
+          <button
+            id="export-wav"
+            type="button"
+            class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
+          >
+            <i class="bi bi-soundwave" aria-hidden="true"></i>
+            <span class="wav-label lang-zh">匯出 WAV</span>
+            <span class="wav-label lang-en">Export WAV</span>
           </button>
         </div>
         <span class="hint lang-zh">ABC 指法範例：<code>"^1"A</code></span>
@@ -861,6 +897,11 @@
         var playLabelZh = playButton.querySelector(".play-label.lang-zh");
         var playLabelEn = playButton.querySelector(".play-label.lang-en");
         var printButton = document.getElementById("print");
+        var shareButton = document.getElementById("share");
+        var exportMidiButton = document.getElementById("export-midi");
+        var exportWavButton = document.getElementById("export-wav");
+        var wavLabelZh = exportWavButton.querySelector(".wav-label.lang-zh");
+        var wavLabelEn = exportWavButton.querySelector(".wav-label.lang-en");
         var repeatPlaybackCheckbox = document.getElementById("repeat-playback");
         var playbackSpeedInput = document.getElementById("playback-speed");
         var debounceTimer;
@@ -927,6 +968,53 @@
           } catch (error) {
             return null;
           }
+        }
+
+        // The score itself can travel in the URL: #m=<mode>&d=<score text>.
+        // Reading this takes priority over saved state so a shared link
+        // always opens showing what was shared, and building it is just the
+        // inverse — used by the "copy share link" button.
+        function readShareParamsFromUrl() {
+          var hash = location.hash.replace(/^#/, "");
+          if (!hash) return null;
+          var params = new URLSearchParams(hash);
+          var data = params.get("d");
+          if (!data) return null;
+          return {
+            mode: params.get("m") === "text" ? "text" : "abc",
+            text: data,
+          };
+        }
+
+        function buildShareUrl() {
+          var url = new URL(location.href);
+          url.hash =
+            "m=" +
+            encodeURIComponent(mode.value) +
+            "&d=" +
+            encodeURIComponent(input.value);
+          return url.toString();
+        }
+
+        function downloadBlob(blob, filename) {
+          var url = URL.createObjectURL(blob);
+          var link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(function () {
+            URL.revokeObjectURL(url);
+          }, 1000);
+        }
+
+        function scoreFileName(extension) {
+          var title =
+            (lastLayout && lastLayout.header && lastLayout.header.title) ||
+            "score";
+          var safe = title.replace(/[\\/:*?"<>|]+/g, "").trim() || "score";
+          return safe + "." + extension;
         }
 
         function updatePrintTitle(header) {
@@ -1196,6 +1284,286 @@
           };
         }
 
+        // --- MIDI export -----------------------------------------------
+        // A minimal hand-rolled Standard MIDI File (format 0) writer built
+        // straight from buildPlaybackPlan's schedule, since abcjs's own
+        // MIDI writer needs a full ABC Tune object that jianpu text-mode
+        // input never has. Melody goes on channel 0, chord accompaniment
+        // on channel 1.
+
+        function writeVarLen(value) {
+          var bytes = [value & 0x7f];
+          value >>= 7;
+          while (value > 0) {
+            bytes.unshift((value & 0x7f) | 0x80);
+            value >>= 7;
+          }
+          return bytes;
+        }
+
+        function buildMidiEvents(plan, ppq) {
+          var events = [];
+          function addNote(channel, midi, offsetBeats, durationBeats, velocity) {
+            var startTick = Math.round(offsetBeats * ppq);
+            var endTick = Math.round((offsetBeats + durationBeats) * ppq);
+            if (endTick <= startTick) endTick = startTick + 1;
+            events.push({ tick: startTick, type: "on", channel: channel, note: midi, velocity: velocity });
+            events.push({ tick: endTick, type: "off", channel: channel, note: midi, velocity: 0 });
+          }
+          plan.audioSchedule.forEach(function (item) {
+            addNote(0, item.midi, item.offsetBeats, item.durationBeats, 100);
+          });
+          plan.chordSchedule.forEach(function (item) {
+            item.midiNotes.forEach(function (midi) {
+              addNote(1, midi, item.offsetBeats, item.durationBeats, 70);
+            });
+          });
+          events.sort(function (a, b) {
+            if (a.tick !== b.tick) return a.tick - b.tick;
+            if (a.type !== b.type) return a.type === "off" ? -1 : 1;
+            return 0;
+          });
+          return events;
+        }
+
+        function buildMidiTrackBytes(events, bpm) {
+          var bytes = [];
+          var lastTick = 0;
+          function pushDelta(tick) {
+            bytes.push.apply(bytes, writeVarLen(Math.max(0, tick - lastTick)));
+            lastTick = tick;
+          }
+          pushDelta(0);
+          var microsPerBeat = Math.round(60000000 / bpm);
+          bytes.push(
+            0xff, 0x51, 0x03,
+            (microsPerBeat >> 16) & 0xff,
+            (microsPerBeat >> 8) & 0xff,
+            microsPerBeat & 0xff,
+          );
+          pushDelta(0);
+          bytes.push(0xc0, 0);
+          pushDelta(0);
+          bytes.push(0xc1, 0);
+          events.forEach(function (event) {
+            pushDelta(event.tick);
+            bytes.push(
+              (event.type === "on" ? 0x90 : 0x80) | event.channel,
+              event.note & 0x7f,
+              event.velocity & 0x7f,
+            );
+          });
+          bytes.push.apply(bytes, writeVarLen(0));
+          bytes.push(0xff, 0x2f, 0x00);
+          return bytes;
+        }
+
+        function buildMidiFile(plan, bpm) {
+          var ppq = 480;
+          var trackBytes = buildMidiTrackBytes(buildMidiEvents(plan, ppq), bpm);
+          var header = [
+            0x4d, 0x54, 0x68, 0x64,
+            0x00, 0x00, 0x00, 0x06,
+            0x00, 0x00,
+            0x00, 0x01,
+            (ppq >> 8) & 0xff, ppq & 0xff,
+          ];
+          var trackHeader = [
+            0x4d, 0x54, 0x72, 0x6b,
+            (trackBytes.length >>> 24) & 0xff,
+            (trackBytes.length >>> 16) & 0xff,
+            (trackBytes.length >>> 8) & 0xff,
+            trackBytes.length & 0xff,
+          ];
+          return new Uint8Array(header.concat(trackHeader, trackBytes));
+        }
+
+        function exportMidi() {
+          if (!lastLayout) return;
+          var plan = buildPlaybackPlan(lastLayout, preview);
+          var bpm = Number(playbackSpeedInput.value) || DEFAULT_PLAYBACK_BPM;
+          var bytes = buildMidiFile(plan, bpm);
+          downloadBlob(new Blob([bytes], { type: "audio/midi" }), scoreFileName("mid"));
+        }
+
+        // --- WAV export --------------------------------------------------
+        // Renders the exact same schedule offline through an
+        // OfflineAudioContext, replicating piano-player.js's pitch-shift +
+        // envelope logic (that module only exposes playNote() against its
+        // own live AudioContext, so this re-fetches/decodes the same
+        // sample files rather than requiring a library change + rebuild).
+
+        var PIANO_SAMPLE_BASE_URL = "src/jianpu/piano-samples/";
+        var wavSampleBuffersPromise = null;
+
+        function nearestPianoSample(midiNumber) {
+          var samples = ABCJS.jianpu.pianoPlayer.samples;
+          var nearest = samples[0];
+          var nearestDistance = Infinity;
+          samples.forEach(function (sample) {
+            var distance = Math.abs(sample.midi - midiNumber);
+            if (distance < nearestDistance) {
+              nearestDistance = distance;
+              nearest = sample;
+            }
+          });
+          return nearest;
+        }
+
+        function loadWavSampleBuffers() {
+          if (wavSampleBuffersPromise) return wavSampleBuffersPromise;
+          var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          var decodeContext = new AudioContextClass();
+          wavSampleBuffersPromise = Promise.all(
+            ABCJS.jianpu.pianoPlayer.samples.map(function (sample) {
+              return fetch(PIANO_SAMPLE_BASE_URL + encodeURIComponent(sample.fileName))
+                .then(function (response) {
+                  return response.arrayBuffer();
+                })
+                .then(function (arrayBuffer) {
+                  return decodeContext.decodeAudioData(arrayBuffer);
+                })
+                .then(function (audioBuffer) {
+                  return { fileName: sample.fileName, buffer: audioBuffer };
+                });
+            }),
+          ).then(function (results) {
+            var map = {};
+            results.forEach(function (result) {
+              map[result.fileName] = result.buffer;
+            });
+            decodeContext.close();
+            return map;
+          });
+          return wavSampleBuffersPromise;
+        }
+
+        function scheduleNoteOffline(offlineCtx, buffers, midiNumber, startSeconds, durationSeconds) {
+          var sample = nearestPianoSample(midiNumber);
+          var buffer = buffers[sample.fileName];
+          if (!buffer || startSeconds < 0) return;
+          var source = offlineCtx.createBufferSource();
+          source.buffer = buffer;
+          source.playbackRate.value = Math.pow(2, (midiNumber - sample.midi) / 12);
+          var gainNode = offlineCtx.createGain();
+          source.connect(gainNode);
+          gainNode.connect(offlineCtx.destination);
+          var seconds = durationSeconds > 0 ? durationSeconds : 0.8;
+          var releaseStart = Math.max(0, seconds - 0.08);
+          gainNode.gain.setValueAtTime(1, startSeconds);
+          gainNode.gain.setValueAtTime(1, startSeconds + releaseStart);
+          gainNode.gain.linearRampToValueAtTime(0.0001, startSeconds + seconds);
+          source.start(startSeconds);
+          source.stop(startSeconds + seconds + 0.05);
+        }
+
+        function audioBufferToWavBlob(buffer) {
+          var numChannels = buffer.numberOfChannels;
+          var sampleRate = buffer.sampleRate;
+          var numFrames = buffer.length;
+          var blockAlign = numChannels * 2;
+          var dataSize = numFrames * blockAlign;
+          var arrayBuffer = new ArrayBuffer(44 + dataSize);
+          var view = new DataView(arrayBuffer);
+
+          function writeString(offset, string) {
+            for (var i = 0; i < string.length; i++)
+              view.setUint8(offset + i, string.charCodeAt(i));
+          }
+
+          writeString(0, "RIFF");
+          view.setUint32(4, 36 + dataSize, true);
+          writeString(8, "WAVE");
+          writeString(12, "fmt ");
+          view.setUint32(16, 16, true);
+          view.setUint16(20, 1, true);
+          view.setUint16(22, numChannels, true);
+          view.setUint32(24, sampleRate, true);
+          view.setUint32(28, sampleRate * blockAlign, true);
+          view.setUint16(32, blockAlign, true);
+          view.setUint16(34, 16, true);
+          writeString(36, "data");
+          view.setUint32(40, dataSize, true);
+
+          var channelData = [];
+          for (var c = 0; c < numChannels; c++) channelData.push(buffer.getChannelData(c));
+
+          var offset = 44;
+          for (var i = 0; i < numFrames; i++) {
+            for (var c2 = 0; c2 < numChannels; c2++) {
+              var sample = Math.max(-1, Math.min(1, channelData[c2][i]));
+              view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+              offset += 2;
+            }
+          }
+
+          return new Blob([arrayBuffer], { type: "audio/wav" });
+        }
+
+        function setWavExportBusy(isBusy) {
+          exportWavButton.disabled = isBusy;
+          wavLabelZh.textContent = isBusy ? "匯出中…" : "匯出 WAV";
+          wavLabelEn.textContent = isBusy ? "Exporting…" : "Export WAV";
+        }
+
+        function exportWav() {
+          if (!lastLayout) return;
+          var plan = buildPlaybackPlan(lastLayout, preview);
+          var secondsPerBeat = getSecondsPerBeat();
+          var totalSeconds = 1;
+          function accumulate(items) {
+            items.forEach(function (item) {
+              var end = (item.offsetBeats + item.durationBeats) * secondsPerBeat;
+              if (end > totalSeconds) totalSeconds = end;
+            });
+          }
+          accumulate(plan.audioSchedule);
+          accumulate(plan.chordSchedule);
+          totalSeconds += 1;
+
+          setWavExportBusy(true);
+          loadWavSampleBuffers()
+            .then(function (buffers) {
+              var sampleRate = 44100;
+              var offlineCtx = new OfflineAudioContext(
+                2,
+                Math.ceil(totalSeconds * sampleRate),
+                sampleRate,
+              );
+              plan.audioSchedule.forEach(function (item) {
+                scheduleNoteOffline(
+                  offlineCtx,
+                  buffers,
+                  item.midi,
+                  item.offsetBeats * secondsPerBeat,
+                  item.durationBeats * secondsPerBeat,
+                );
+              });
+              plan.chordSchedule.forEach(function (item) {
+                item.midiNotes.forEach(function (midi) {
+                  scheduleNoteOffline(
+                    offlineCtx,
+                    buffers,
+                    midi,
+                    item.offsetBeats * secondsPerBeat,
+                    item.durationBeats * secondsPerBeat,
+                  );
+                });
+              });
+              return offlineCtx.startRendering();
+            })
+            .then(function (renderedBuffer) {
+              downloadBlob(audioBufferToWavBlob(renderedBuffer), scoreFileName("wav"));
+            })
+            .catch(function (error) {
+              messages.className = "error";
+              messages.textContent = "WAV export failed: " + error.message;
+            })
+            .then(function () {
+              setWavExportBusy(false);
+            });
+        }
+
         function playTune() {
           if (!lastLayout) return;
           stopPlayback();
@@ -1308,6 +1676,24 @@
           render();
           window.print();
         });
+        shareButton.addEventListener("click", function () {
+          var url = buildShareUrl();
+          var showCopied = function () {
+            shareButton.classList.add("copied");
+            setTimeout(function () {
+              shareButton.classList.remove("copied");
+            }, 1500);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(showCopied, function () {
+              window.prompt("", url);
+            });
+          } else {
+            window.prompt("", url);
+          }
+        });
+        exportMidiButton.addEventListener("click", exportMidi);
+        exportWavButton.addEventListener("click", exportWav);
         window.addEventListener("beforeprint", function () {
           document.title = printTitle;
         });
@@ -1327,7 +1713,9 @@
         // repeat, and language — if this browser has saved state. First
         // visit falls back to the built-in example scores and picks a UI
         // language from the browser's own locale (Chinese if it looks
-        // Chinese, English otherwise).
+        // Chinese, English otherwise). A score shared via URL (#m=&d=)
+        // takes priority over both, since opening a share link should
+        // always show what was shared.
         var savedState = loadState();
         if (savedState) {
           if (savedState.drafts && typeof savedState.drafts.abc === "string")
@@ -1339,6 +1727,11 @@
           if (savedState.speed) playbackSpeedInput.value = savedState.speed;
           if (typeof savedState.repeat === "boolean")
             repeatPlaybackCheckbox.checked = savedState.repeat;
+        }
+        var shareParams = readShareParamsFromUrl();
+        if (shareParams) {
+          mode.value = shareParams.mode;
+          drafts[shareParams.mode] = shareParams.text;
         }
         applyLanguage((savedState && savedState.lang) || detectDefaultLang());
 

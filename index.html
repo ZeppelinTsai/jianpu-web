@@ -18,7 +18,8 @@
         box-sizing: border-box;
       }
       body {
-        margin: 0;
+        margin: 0 auto;
+        max-width: 1400px;
         padding: 16px;
         font-family:
           system-ui,
@@ -27,6 +28,15 @@
           sans-serif;
         color: #222;
         background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+      }
+      .btn-primary {
+        --bs-btn-bg: #4f46e5;
+        --bs-btn-border-color: #4f46e5;
+        --bs-btn-hover-bg: #4338ca;
+        --bs-btn-hover-border-color: #4338ca;
+        --bs-btn-active-bg: #4338ca;
+        --bs-btn-active-border-color: #4338ca;
+        --bs-btn-focus-shadow-rgb: 79, 70, 229;
       }
       .app-header {
         display: flex;
@@ -108,42 +118,29 @@
         margin-left: 0;
         text-align: left;
       }
+      .toolbar-primary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+      .toolbar .toolbar-toggle {
+        display: none;
+      }
+      .toolbar-more {
+        display: contents;
+      }
       .toolbar .play-controls {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 8px;
       }
-      .toolbar .control-stack {
+      .toolbar-actions {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 8px;
-      }
-      .toolbar .control-stack.play-stack {
-        position: relative;
-      }
-      .toolbar .play-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-      }
-      .toolbar .play-toolbar.collapsed {
-        display: none;
-      }
-      .toolbar .collapse-toggle {
-        display: none;
-        border: 1px solid #d0d7de;
-        background: #fff;
-        color: #334155;
-        min-width: 40px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        position: absolute;
-        top: 0;
-        right: 0;
-        z-index: 2;
       }
       .toolbar .play-option {
         display: inline-flex;
@@ -339,33 +336,30 @@
         .toolbar {
           flex-direction: column;
           align-items: stretch;
-          gap: 8px;
+          gap: 10px;
         }
         .toolbar .mode-label {
           display: none;
         }
-        .toolbar .control-stack {
+        .toolbar-primary {
           width: 100%;
-          justify-content: flex-start;
           gap: 6px;
         }
-        .toolbar .control-stack:last-of-type {
-          flex-wrap: nowrap;
-        }
-        .toolbar .play-toolbar {
+        .toolbar .toolbar-toggle {
+          display: flex;
           width: 100%;
-          margin-left: 0;
         }
-        .toolbar .control-stack.play-stack {
-          padding-right: 48px;
+        .toolbar-more {
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+          width: 100%;
         }
-        .toolbar .collapse-toggle {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
+        .toolbar-more.collapsed {
+          display: none;
         }
         .toolbar .play-controls {
-          margin-left: 0;
           flex-wrap: wrap;
           gap: 6px;
           width: 100%;
@@ -380,15 +374,18 @@
           min-height: 30px;
           padding: 4px 6px;
         }
-        .toolbar .control-stack #play {
+        .toolbar-primary #play {
           flex: 0 0 auto;
           min-width: 84px;
         }
         #mode {
           width: 100%;
         }
-        #print,
-        #help {
+        .toolbar-actions {
+          width: 100%;
+        }
+        .toolbar-actions #print,
+        .toolbar-actions #help {
           flex: 1 1 0;
           width: auto;
         }
@@ -497,7 +494,7 @@
       </div>
     </div>
     <div class="toolbar">
-      <div class="control-stack play-stack">
+      <div class="toolbar-primary">
         <label class="mode-label fw-semibold lang-zh" for="mode">輸入模式</label>
         <label class="mode-label fw-semibold lang-en" for="mode">Input Mode</label>
         <select
@@ -517,17 +514,17 @@
           <span class="play-label lang-zh">播放</span>
           <span class="play-label lang-en">Play</span>
         </button>
-        <button
-          id="playToggle"
-          type="button"
-          class="collapse-toggle"
-          aria-expanded="true"
-          aria-controls="playToolbar"
-        >
-          <i class="bi bi-chevron-up" aria-hidden="true"></i>
-        </button>
       </div>
-      <div class="play-toolbar" id="playToolbar">
+      <button
+        type="button"
+        class="panel-toggle toolbar-toggle"
+        data-target="toolbar-more"
+        aria-expanded="true"
+      >
+        <span class="lang-zh">更多選項</span><span class="lang-en">More Options</span>
+        <span class="chevron" aria-hidden="true">▾</span>
+      </button>
+      <div class="toolbar-more" id="toolbar-more">
         <div class="play-controls">
           <label class="play-option" for="repeat-playback">
             <input
@@ -553,30 +550,30 @@
             <span>BPM</span>
           </label>
         </div>
+        <div class="toolbar-actions">
+          <button
+            id="print"
+            type="button"
+            class="btn btn-outline-secondary btn-sm"
+          >
+            <span class="lang-zh">列印／儲存 PDF</span>
+            <span class="lang-en">Print / Save PDF</span>
+          </button>
+          <button
+            id="help"
+            type="button"
+            class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
+            data-bs-toggle="modal"
+            data-bs-target="#helpModal"
+          >
+            <i class="bi bi-question-circle" aria-hidden="true"></i>
+            <span class="lang-zh">使用說明</span>
+            <span class="lang-en">Help</span>
+          </button>
+        </div>
+        <span class="hint lang-zh">ABC 指法範例：<code>"^1"A</code></span>
+        <span class="hint lang-en">ABC fingering example: <code>"^1"A</code></span>
       </div>
-      <div class="control-stack">
-        <button
-          id="print"
-          type="button"
-          class="btn btn-outline-secondary btn-sm"
-        >
-          <span class="lang-zh">列印／儲存 PDF</span>
-          <span class="lang-en">Print / Save PDF</span>
-        </button>
-        <button
-          id="help"
-          type="button"
-          class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
-          data-bs-toggle="modal"
-          data-bs-target="#helpModal"
-        >
-          <i class="bi bi-question-circle" aria-hidden="true"></i>
-          <span class="lang-zh">使用說明</span>
-          <span class="lang-en">Help</span>
-        </button>
-      </div>
-      <span class="hint lang-zh">ABC 指法範例：<code>"^1"A</code></span>
-      <span class="hint lang-en">ABC fingering example: <code>"^1"A</code></span>
     </div>
 
     <div
@@ -841,8 +838,6 @@
         var playIcon = playButton.querySelector(".bi");
         var playLabelZh = playButton.querySelector(".play-label.lang-zh");
         var playLabelEn = playButton.querySelector(".play-label.lang-en");
-        var playToolbar = document.getElementById("playToolbar");
-        var playToggleButton = document.getElementById("playToggle");
         var printButton = document.getElementById("print");
         var repeatPlaybackCheckbox = document.getElementById("repeat-playback");
         var playbackSpeedInput = document.getElementById("playback-speed");
@@ -1235,13 +1230,6 @@
         playButton.addEventListener("click", function () {
           if (playing) stopPlayback();
           else playTune();
-        });
-        playToggleButton.addEventListener("click", function () {
-          var collapsed = playToolbar.classList.toggle("collapsed");
-          playToggleButton.setAttribute("aria-expanded", String(!collapsed));
-          playToggleButton.innerHTML = collapsed
-            ? '<i class="bi bi-chevron-down" aria-hidden="true"></i>'
-            : '<i class="bi bi-chevron-up" aria-hidden="true"></i>';
         });
         printButton.addEventListener("click", function () {
           render();

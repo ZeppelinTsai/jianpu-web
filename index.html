@@ -65,6 +65,12 @@
         background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
         color: #fff;
       }
+      html.ui-en .lang-zh {
+        display: none !important;
+      }
+      html:not(.ui-en) .lang-en {
+        display: none !important;
+      }
       h1 .app-title {
         font-size: 26px;
         font-weight: 800;
@@ -258,11 +264,20 @@
           fill 0.1s ease,
           stroke 0.1s ease;
       }
+      #preview .jianpu-number.jianpu-playing,
+      #preview .jianpu-accidental.jianpu-playing,
+      #preview .jianpu-notehead.jianpu-playing,
       #preview .jianpu-event.jianpu-playing .jianpu-number,
       #preview .jianpu-event.jianpu-playing .jianpu-accidental,
       #preview .jianpu-event.jianpu-playing .jianpu-notehead {
         fill: #dc2626;
       }
+      #preview .jianpu-underline.jianpu-playing,
+      #preview .jianpu-extension.jianpu-playing,
+      #preview .jianpu-duration-dot.jianpu-playing,
+      #preview .jianpu-octave-dot.jianpu-playing,
+      #preview .jianpu-tie.jianpu-playing,
+      #preview .jianpu-stem.jianpu-playing,
       #preview .jianpu-event.jianpu-playing .jianpu-underline,
       #preview .jianpu-event.jianpu-playing .jianpu-extension,
       #preview .jianpu-event.jianpu-playing .jianpu-duration-dot,
@@ -465,15 +480,26 @@
     </style>
   </head>
   <body>
-    <h1>
-      <span class="app-title"
-        ><i class="bi bi-music-note-beamed" aria-hidden="true"></i>ABC簡譜製作器</span
-      >
-      <span class="app-byline">By ZeppelinTsai</span>
-    </h1>
+    <div class="app-header">
+      <h1>
+        <span class="app-title"
+          ><i class="bi bi-music-note-beamed" aria-hidden="true"></i
+          ><span class="lang-zh">ABC簡譜製作器</span
+          ><span class="lang-en">ABC Jianpu Maker</span></span
+        >
+        <span class="app-byline">By ZeppelinTsai</span>
+      </h1>
+      <div class="lang-switch" role="group" aria-label="Language / 語言">
+        <button type="button" class="lang-btn active" data-lang="zh-Hant">
+          中文
+        </button>
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+      </div>
+    </div>
     <div class="toolbar">
       <div class="control-stack play-stack">
-        <label class="mode-label fw-semibold" for="mode">輸入模式</label>
+        <label class="mode-label fw-semibold lang-zh" for="mode">輸入模式</label>
+        <label class="mode-label fw-semibold lang-en" for="mode">Input Mode</label>
         <select
           id="mode"
           class="form-select form-select-sm"
@@ -488,7 +514,8 @@
           class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
         >
           <i class="bi bi-play-fill" aria-hidden="true"></i>
-          <span class="play-label">播放</span>
+          <span class="play-label lang-zh">播放</span>
+          <span class="play-label lang-en">Play</span>
         </button>
         <button
           id="playToggle"
@@ -508,10 +535,12 @@
               class="form-check-input"
               type="checkbox"
             />
-            <span>重複播放</span>
+            <span class="lang-zh">重複播放</span>
+            <span class="lang-en">Repeat</span>
           </label>
           <label class="play-option" for="playback-speed">
-            <span>速度</span>
+            <span class="lang-zh">速度</span>
+            <span class="lang-en">Speed</span>
             <input
               id="playback-speed"
               class="form-control form-control-sm"
@@ -531,7 +560,8 @@
           type="button"
           class="btn btn-outline-secondary btn-sm"
         >
-          列印／儲存 PDF
+          <span class="lang-zh">列印／儲存 PDF</span>
+          <span class="lang-en">Print / Save PDF</span>
         </button>
         <button
           id="help"
@@ -541,10 +571,12 @@
           data-bs-target="#helpModal"
         >
           <i class="bi bi-question-circle" aria-hidden="true"></i>
-          <span>使用說明</span>
+          <span class="lang-zh">使用說明</span>
+          <span class="lang-en">Help</span>
         </button>
       </div>
-      <span class="hint">ABC 指法範例：<code>"^1"A</code></span>
+      <span class="hint lang-zh">ABC 指法範例：<code>"^1"A</code></span>
+      <span class="hint lang-en">ABC fingering example: <code>"^1"A</code></span>
     </div>
 
     <div
@@ -557,7 +589,8 @@
       <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="helpModalLabel">使用說明</h5>
+            <h5 class="modal-title lang-zh" id="helpModalLabel">使用說明</h5>
+            <h5 class="modal-title lang-en">Help</h5>
             <button
               type="button"
               class="btn-close"
@@ -566,65 +599,153 @@
             ></button>
           </div>
           <div class="modal-body">
-            <h6 class="fw-bold">ABC 模式</h6>
-            <ul class="small mb-3">
-              <li>
-                <code>C D E F G A B</code> 為基準音，小寫字母
-                <code>c d e f g a b</code> 高一個八度；音符後加
-                <code>,</code> 降八度、加 <code>'</code> 升八度。
-              </li>
-              <li>
-                音符後面的數字是時值，以
-                <code>L:</code> 設定的單位音符長度為基準，例如
-                <code>L:1/8</code> 時 <code>A6</code> 代表 A 音維持 6
-                個八分音符長。
-              </li>
-              <li><code>|</code> 為小節線，<code>||</code> 為結束線。</li>
-              <li>
-                和絃或指法用引號標註在音符前，例如
-                <code>"Am"</code> 顯示和絃、<code>"^1"</code>
-                顯示指法數字 1。
-              </li>
-              <li>
-                同音之間加 <code>-</code>
-                表示圓滑線（tie），播放時會合併成一個持續音，不會重複觸發。
-              </li>
-              <li>
-                檔頭常用欄位：<code>T:</code> 標題、<code>C:</code> 作曲、<code
-                  >M:</code
-                >
-                拍號、<code>K:</code> 調性、 <code>Q:</code> 速度。
-              </li>
-            </ul>
-            <h6 class="fw-bold">簡譜文字模式</h6>
-            <ul class="small mb-0">
-              <li>
-                直接輸入簡譜數字 <code>1</code>–<code>7</code>
-                代表唱名（Do–Si），<code>0</code> 表示休止符。
-              </li>
-              <li>
-                數字後加 <code>'</code> 升八度（可疊加 <code>''</code>）、 加
-                <code>,</code> 降八度（可疊加 <code>,,</code>）。
-              </li>
-              <li>
-                數字後加底線 <code>_</code>
-                縮短時值（一條線八分音符、兩條線十六分音符）。
-              </li>
-              <li>加 <code>.</code> 為附點，延長一半時值；可疊加多個點。</li>
-              <li>
-                加 <code>-</code> 延長上一個音符一拍，可疊加多個
-                <code>-</code>；效果等同圓滑線，不會重複播放。
-              </li>
-              <li><code>|</code> 為小節線，<code>|]</code> 為結束線。</li>
-            </ul>
+            <div class="lang-zh">
+              <h6 class="fw-bold">ABC 模式</h6>
+              <ul class="small mb-3">
+                <li>
+                  <code>C D E F G A B</code> 為基準音，小寫字母
+                  <code>c d e f g a b</code> 高一個八度；音符後加
+                  <code>,</code> 降八度、加 <code>'</code> 升八度。
+                </li>
+                <li>
+                  音符後面的數字是時值，以
+                  <code>L:</code> 設定的單位音符長度為基準，例如
+                  <code>L:1/8</code> 時 <code>A6</code> 代表 A 音維持 6
+                  個八分音符長。
+                </li>
+                <li><code>|</code> 為小節線，<code>||</code> 為結束線。</li>
+                <li>
+                  和絃或指法用引號標註在音符前，例如
+                  <code>"Am"</code> 顯示和絃、<code>"^1"</code>
+                  顯示指法數字 1。
+                </li>
+                <li>
+                  同音之間加 <code>-</code>
+                  表示圓滑線（tie），播放時會合併成一個持續音，不會重複觸發。
+                </li>
+                <li>
+                  檔頭常用欄位：<code>T:</code> 標題、<code>C:</code>
+                  作曲、<code>M:</code>
+                  拍號、<code>K:</code> 調性、 <code>Q:</code> 速度。
+                </li>
+                <li>
+                  和絃記號（<code>"Dm"</code>、<code>"Am"</code>
+                  等）播放時會以低音域和絃伴奏，直到下一個和絃記號出現為止。
+                </li>
+              </ul>
+              <h6 class="fw-bold">簡譜文字模式</h6>
+              <ul class="small mb-0">
+                <li>
+                  直接輸入簡譜數字 <code>1</code>–<code>7</code>
+                  代表唱名（Do–Si），<code>0</code> 表示休止符。
+                </li>
+                <li>
+                  數字後加 <code>'</code> 升八度（可疊加
+                  <code>''</code>）、 加 <code>,</code> 降八度（可疊加
+                  <code>,,</code>）。
+                </li>
+                <li>
+                  數字後加底線 <code>_</code>
+                  縮短時值（一條線八分音符、兩條線十六分音符）。
+                </li>
+                <li>
+                  加 <code>.</code> 為附點，延長一半時值；可疊加多個點。
+                </li>
+                <li>
+                  加 <code>-</code> 延長上一個音符一拍，可疊加多個
+                  <code>-</code>；效果等同圓滑線，不會重複播放，播放動畫會精準走過每個
+                  <code>-</code>。
+                </li>
+                <li><code>|</code> 為小節線，<code>|]</code> 為結束線。</li>
+              </ul>
+            </div>
+            <div class="lang-en">
+              <h6 class="fw-bold">ABC Mode</h6>
+              <ul class="small mb-3">
+                <li>
+                  <code>C D E F G A B</code> are the base octave; lowercase
+                  <code>c d e f g a b</code> are one octave higher. Add
+                  <code>,</code> after a note to drop an octave, or
+                  <code>'</code> to raise one.
+                </li>
+                <li>
+                  The number after a note is its duration, relative to the
+                  unit note length set by <code>L:</code>. E.g. with
+                  <code>L:1/8</code>, <code>A6</code> means an A held for 6
+                  eighth notes.
+                </li>
+                <li>
+                  <code>|</code> is a bar line, <code>||</code> is a final
+                  bar line.
+                </li>
+                <li>
+                  Chord symbols or fingerings go in quotes before a note,
+                  e.g. <code>"Am"</code> shows a chord symbol,
+                  <code>"^1"</code> shows fingering number 1.
+                </li>
+                <li>
+                  A <code>-</code> between two notes of the same pitch is a
+                  tie: on playback they merge into one sustained note
+                  instead of re-attacking.
+                </li>
+                <li>
+                  Common header fields: <code>T:</code> title,
+                  <code>C:</code> composer, <code>M:</code> meter,
+                  <code>K:</code> key, <code>Q:</code> tempo.
+                </li>
+                <li>
+                  Chord symbols (<code>"Dm"</code>, <code>"Am"</code>, etc.)
+                  play as a low-register chord accompaniment, held until the
+                  next chord symbol appears.
+                </li>
+              </ul>
+              <h6 class="fw-bold">Jianpu Text Mode</h6>
+              <ul class="small mb-0">
+                <li>
+                  Type jianpu digits <code>1</code>–<code>7</code> directly
+                  for scale degrees (Do–Si); <code>0</code> is a rest.
+                </li>
+                <li>
+                  Add <code>'</code> after a digit to raise an octave (stack
+                  with <code>''</code>), or <code>,</code> to drop an octave
+                  (stack with <code>,,</code>).
+                </li>
+                <li>
+                  Add underline marks <code>_</code> to shorten the
+                  duration (one line = eighth note, two lines = sixteenth
+                  note).
+                </li>
+                <li>
+                  Add <code>.</code> for an augmentation dot, extending the
+                  duration by half; multiple dots can stack.
+                </li>
+                <li>
+                  Add <code>-</code> to extend the previous note by one
+                  beat; multiple dashes can stack. Same effect as a tie — no
+                  re-attack, and the playback animation steps precisely
+                  through each <code>-</code>.
+                </li>
+                <li>
+                  <code>|</code> is a bar line, <code>|]</code> is a final
+                  bar line.
+                </li>
+              </ul>
+            </div>
           </div>
           <div class="modal-footer">
             <button
               type="button"
-              class="btn btn-primary btn-sm"
+              class="btn btn-primary btn-sm lang-zh"
               data-bs-dismiss="modal"
             >
               關閉
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm lang-en"
+              data-bs-dismiss="modal"
+            >
+              Close
             </button>
           </div>
         </div>
@@ -640,7 +761,8 @@
             data-target="input-body"
             aria-expanded="true"
           >
-            輸入 <span class="chevron" aria-hidden="true">▾</span>
+            <span class="lang-zh">輸入</span><span class="lang-en">Input</span>
+            <span class="chevron" aria-hidden="true">▾</span>
           </button>
         </h2>
         <div class="panel-body" id="input-body">
@@ -659,7 +781,8 @@
             data-target="output-body"
             aria-expanded="true"
           >
-            簡譜 SVG <span class="chevron" aria-hidden="true">▾</span>
+            <span class="lang-zh">簡譜 SVG</span><span class="lang-en">Jianpu SVG</span>
+            <span class="chevron" aria-hidden="true">▾</span>
           </button>
         </h2>
         <div class="panel-body" id="output-body">
@@ -716,7 +839,8 @@
         var messages = document.getElementById("messages");
         var playButton = document.getElementById("play");
         var playIcon = playButton.querySelector(".bi");
-        var playLabel = playButton.querySelector(".play-label");
+        var playLabelZh = playButton.querySelector(".play-label.lang-zh");
+        var playLabelEn = playButton.querySelector(".play-label.lang-en");
         var playToolbar = document.getElementById("playToolbar");
         var playToggleButton = document.getElementById("playToggle");
         var printButton = document.getElementById("print");
@@ -729,6 +853,25 @@
         var DEFAULT_PLAYBACK_BPM = 180;
         var playTimeouts = [];
         var playing = false;
+        var lastWarnings = [];
+
+        var PAGE_TITLE = {
+          "zh-Hant": "ABC簡譜製作器 By ZeppelinTsai",
+          en: "ABC Jianpu Maker By ZeppelinTsai",
+        };
+        var NO_WARNINGS_TEXT = {
+          "zh-Hant": "沒有 warnings",
+          en: "No warnings",
+        };
+        var MODE_OPTION_TEXT = {
+          "zh-Hant": ["ABC 模式", "簡譜文字模式"],
+          en: ["ABC Mode", "Jianpu Text Mode"],
+        };
+        var INPUT_ARIA_LABEL = {
+          "zh-Hant": "樂譜輸入",
+          en: "Score input",
+        };
+        var currentLang = "zh-Hant";
 
         function updatePrintTitle(header) {
           var parts = [];
@@ -738,9 +881,10 @@
         }
 
         function showMessages(warnings) {
+          lastWarnings = warnings;
           if (!warnings.length) {
             messages.className = "ok";
-            messages.textContent = "沒有 warnings";
+            messages.textContent = NO_WARNINGS_TEXT[currentLang];
             return;
           }
           messages.className = "";
@@ -749,6 +893,35 @@
               return index + 1 + ". " + warning;
             })
             .join("\n");
+        }
+
+        function applyLanguage(lang) {
+          currentLang = MODE_OPTION_TEXT.hasOwnProperty(lang)
+            ? lang
+            : "zh-Hant";
+          document.documentElement.classList.toggle(
+            "ui-en",
+            currentLang === "en",
+          );
+          document.documentElement.lang =
+            currentLang === "en" ? "en" : "zh-Hant";
+          document.title = PAGE_TITLE[currentLang];
+          playgroundTitle = document.title;
+          mode.options[0].textContent = MODE_OPTION_TEXT[currentLang][0];
+          mode.options[1].textContent = MODE_OPTION_TEXT[currentLang][1];
+          input.setAttribute("aria-label", INPUT_ARIA_LABEL[currentLang]);
+          if (messages.className !== "error") showMessages(lastWarnings);
+          document.querySelectorAll(".lang-btn").forEach(function (btn) {
+            btn.classList.toggle(
+              "active",
+              btn.getAttribute("data-lang") === currentLang,
+            );
+          });
+          try {
+            localStorage.setItem("jianpu-lang", currentLang);
+          } catch (error) {
+            // localStorage unavailable (e.g. privacy mode) — ignore.
+          }
         }
 
         function render() {
@@ -774,7 +947,8 @@
           playing = isPlaying;
           playIcon.classList.toggle("bi-play-fill", !isPlaying);
           playIcon.classList.toggle("bi-stop-fill", isPlaying);
-          playLabel.textContent = isPlaying ? "停止" : "播放";
+          playLabelZh.textContent = isPlaying ? "停止" : "播放";
+          playLabelEn.textContent = isPlaying ? "Stop" : "Play";
         }
 
         function clearHighlights() {
@@ -808,25 +982,118 @@
           return events;
         }
 
+        var CHORD_ROOT_PITCH_CLASS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+        var CHORD_QUALITY_INTERVALS = {
+          "": [0, 4, 7],
+          M: [0, 4, 7],
+          maj: [0, 4, 7],
+          m: [0, 3, 7],
+          min: [0, 3, 7],
+          "-": [0, 3, 7],
+          dim: [0, 3, 6],
+          aug: [0, 4, 8],
+          "+": [0, 4, 8],
+          sus2: [0, 2, 7],
+          sus4: [0, 5, 7],
+          6: [0, 4, 7, 9],
+          m6: [0, 3, 7, 9],
+          7: [0, 4, 7, 10],
+          maj7: [0, 4, 7, 11],
+          M7: [0, 4, 7, 11],
+          m7: [0, 3, 7, 10],
+          min7: [0, 3, 7, 10],
+          m7b5: [0, 3, 6, 10],
+          dim7: [0, 3, 6, 9],
+          9: [0, 4, 7, 10, 14],
+        };
+        var CHORD_VOICING_BASE_MIDI = 48; // C3 — sits below the melody register
+
+        // Parse a chord symbol like "Dm", "G7", "F#m7b5" into MIDI note
+        // numbers for a low-register voicing to accompany the melody.
+        function parseChordSymbol(text) {
+          if (!text) return null;
+          var match = /^([A-Ga-g])([#b]?)([^/]*)/.exec(text.trim());
+          if (!match) return null;
+          var rootLetter = match[1].toUpperCase();
+          var accidental = match[2] === "#" ? 1 : match[2] === "b" ? -1 : 0;
+          var quality = match[3].trim();
+          var intervals = CHORD_QUALITY_INTERVALS.hasOwnProperty(quality)
+            ? CHORD_QUALITY_INTERVALS[quality]
+            : CHORD_QUALITY_INTERVALS[""];
+          var rootPitchClass =
+            (CHORD_ROOT_PITCH_CLASS[rootLetter] + accidental + 12) % 12;
+          var rootMidi = CHORD_VOICING_BASE_MIDI + rootPitchClass;
+          return intervals.map(function (interval) {
+            return rootMidi + interval;
+          });
+        }
+
         // A tie means "hold the note", not "play it again": fold each tied
         // continuation note into the sustain of the note that started the
         // tie instead of scheduling a second attack for it. Alongside the
         // audio schedule, build a per-rendered-event highlight schedule so
         // the score can show a playhead moving across the notes as they
         // sound (ties included, since the notated position still advances
-        // even though the audio doesn't re-attack).
+        // even though the audio doesn't re-attack). Notes held with "-"
+        // extension dashes get one highlight segment per dash instead of a
+        // single block, so the playhead steps onto each dash exactly on its
+        // beat rather than sitting on the note head for the whole duration.
         function buildPlaybackPlan(layout, previewEl) {
           var domEvents = previewEl.querySelectorAll(".jianpu-event");
           var audioSchedule = [];
           var highlightSchedule = [];
+          var chordSchedule = [];
           var pendingTies = new Map();
+          var pendingChord = null;
           var offsetBeats = 0;
           collectPlayableEvents(layout).forEach(function (event, eventIndex) {
             var durationBeats = event.durationBeats || 1;
             var domEventEl = domEvents[eventIndex] || null;
-            if (domEventEl) {
+
+            var chordText =
+              event.annotations &&
+              event.annotations.chords &&
+              event.annotations.chords.length
+                ? event.annotations.chords[0].text
+                : null;
+            if (chordText) {
+              var midiNotes = parseChordSymbol(chordText);
+              if (midiNotes) {
+                if (pendingChord) {
+                  pendingChord.durationBeats =
+                    offsetBeats - pendingChord.offsetBeats;
+                  chordSchedule.push(pendingChord);
+                }
+                pendingChord = { midiNotes: midiNotes, offsetBeats: offsetBeats };
+              }
+            }
+
+            var extensionDashes =
+              (event.durationMarks && event.durationMarks.extensionDashes) ||
+              0;
+            if (domEventEl && extensionDashes > 0) {
+              var segmentCount = 1 + extensionDashes;
+              var segmentBeats = durationBeats / segmentCount;
+              var dashEls = domEventEl.querySelectorAll(".jianpu-extension");
+              var headEls = domEventEl.querySelectorAll(
+                ".jianpu-number, .jianpu-accidental, .jianpu-octave-dot, .jianpu-duration-dot",
+              );
               highlightSchedule.push({
-                element: domEventEl,
+                elements: Array.prototype.slice.call(headEls),
+                offsetBeats: offsetBeats,
+                durationBeats: segmentBeats,
+              });
+              for (var d = 0; d < extensionDashes; d++) {
+                var dashEl = dashEls[d];
+                highlightSchedule.push({
+                  elements: dashEl ? [dashEl] : [],
+                  offsetBeats: offsetBeats + segmentBeats * (d + 1),
+                  durationBeats: segmentBeats,
+                });
+              }
+            } else if (domEventEl) {
+              highlightSchedule.push({
+                elements: [domEventEl],
                 offsetBeats: offsetBeats,
                 durationBeats: durationBeats,
               });
@@ -852,9 +1119,14 @@
             });
             offsetBeats += durationBeats;
           });
+          if (pendingChord) {
+            pendingChord.durationBeats = offsetBeats - pendingChord.offsetBeats;
+            chordSchedule.push(pendingChord);
+          }
           return {
             audioSchedule: audioSchedule,
             highlightSchedule: highlightSchedule,
+            chordSchedule: chordSchedule,
           };
         }
 
@@ -883,7 +1155,21 @@
               playTimeouts.push(
                 setTimeout(function () {
                   clearHighlights();
-                  item.element.classList.add("jianpu-playing");
+                  item.elements.forEach(function (el) {
+                    el.classList.add("jianpu-playing");
+                  });
+                }, offsetMs),
+              );
+            });
+            plan.chordSchedule.forEach(function (item) {
+              var offsetMs = item.offsetBeats * secondsPerBeat * 1000;
+              var durationSeconds = item.durationBeats * secondsPerBeat;
+              totalMs = Math.max(totalMs, offsetMs + durationSeconds * 1000);
+              playTimeouts.push(
+                setTimeout(function () {
+                  item.midiNotes.forEach(function (midi) {
+                    ABCJS.jianpu.pianoPlayer.playNote(midi, durationSeconds);
+                  });
                 }, offsetMs),
               );
             });
@@ -969,6 +1255,19 @@
         });
 
         ABCJS.jianpu.pianoPlayer.loadSamples("src/jianpu/piano-samples/");
+
+        document.querySelectorAll(".lang-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            applyLanguage(btn.getAttribute("data-lang"));
+          });
+        });
+        var storedLang = null;
+        try {
+          storedLang = localStorage.getItem("jianpu-lang");
+        } catch (error) {
+          // localStorage unavailable (e.g. privacy mode) — ignore.
+        }
+        applyLanguage(storedLang || "zh-Hant");
 
         input.value = drafts.abc;
         autoResizeTextarea();

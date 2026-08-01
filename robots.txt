@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zeppelintsai.github.io/jianpu-web/sitemap.xml

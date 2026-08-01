@@ -9,25 +9,25 @@
 <g class="jianpu-line" data-line="1">
 <text class="jianpu-measure-number" x="4" y="93">1</text>
 <g class="jianpu-measure" data-measure="1">
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <g class="jianpu-note" data-midi="48">
 <text class="jianpu-number" x="56" y="147">1</text>
 <circle class="jianpu-octave-dot" cx="56" cy="152" r="2"/>
 </g>
 </g>
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <g class="jianpu-note" data-midi="38">
 <text class="jianpu-number" x="78.189" y="147">2</text>
 <circle class="jianpu-octave-dot" cx="78.189" cy="152" r="2"/>
 <circle class="jianpu-octave-dot" cx="78.189" cy="157" r="2"/>
 </g>
 </g>
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <g class="jianpu-note" data-midi="64">
 <text class="jianpu-number" x="100.378" y="147">3</text>
 </g>
 </g>
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <g class="jianpu-note" data-midi="77">
 <text class="jianpu-number" x="122.566" y="147">4</text>
 <circle class="jianpu-octave-dot" cx="122.566" cy="126" r="2"/>
@@ -36,26 +36,26 @@
 <line class="jianpu-bar" x1="140.77" y1="122" x2="140.77" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="2">
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <g class="jianpu-note" data-midi="91">
 <text class="jianpu-number" x="162.872" y="147">5</text>
 <circle class="jianpu-octave-dot" cx="162.872" cy="126" r="2"/>
 <circle class="jianpu-octave-dot" cx="162.872" cy="121" r="2"/>
 </g>
 </g>
-<g class="jianpu-event" data-duration-beats="0.5">
+<g class="jianpu-event" data-duration-beats="0.5" data-instrument="piano">
 <g class="jianpu-note" data-midi="69">
 <text class="jianpu-number" x="185.061" y="147">6</text>
 </g>
 <line class="jianpu-underline" x1="178.061" y1="152" x2="192.061" y2="152" stroke-width="1.4"/>
 </g>
-<g class="jianpu-event" data-duration-beats="0.5">
+<g class="jianpu-event" data-duration-beats="0.5" data-instrument="piano">
 <g class="jianpu-note" data-midi="71">
 <text class="jianpu-number" x="207.25" y="147">7</text>
 </g>
 <line class="jianpu-underline" x1="200.25" y1="152" x2="214.25" y2="152" stroke-width="1.4"/>
 </g>
-<g class="jianpu-event" data-duration-beats="2">
+<g class="jianpu-event" data-duration-beats="2" data-instrument="piano">
 <g class="jianpu-note" data-midi="60">
 <text class="jianpu-number" x="229.439" y="147">1</text>
 </g>
@@ -64,27 +64,27 @@
 <line class="jianpu-bar" x1="274.73" y1="122" x2="274.73" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="3">
-<g class="jianpu-event" data-duration-beats="1.5">
+<g class="jianpu-event" data-duration-beats="1.5" data-instrument="piano">
 <g class="jianpu-note" data-midi="62">
 <text class="jianpu-number" x="296.832" y="147">2</text>
 </g>
 <circle class="jianpu-duration-dot" cx="307.332" cy="142" r="1.8"/>
 </g>
-<g class="jianpu-event" data-duration-beats="0.25">
+<g class="jianpu-event" data-duration-beats="0.25" data-instrument="piano">
 <g class="jianpu-note" data-midi="64">
 <text class="jianpu-number" x="326.02" y="147">3</text>
 </g>
 <line class="jianpu-underline" x1="319.02" y1="152" x2="333.02" y2="152" stroke-width="1.4"/>
 <line class="jianpu-underline" x1="319.02" y1="156" x2="333.02" y2="156" stroke-width="1.4"/>
 </g>
-<g class="jianpu-event" data-duration-beats="0.25">
+<g class="jianpu-event" data-duration-beats="0.25" data-instrument="piano">
 <g class="jianpu-note" data-midi="65">
 <text class="jianpu-number" x="348.209" y="147">4</text>
 </g>
 <line class="jianpu-underline" x1="341.209" y1="152" x2="355.209" y2="152" stroke-width="1.4"/>
 <line class="jianpu-underline" x1="341.209" y1="156" x2="355.209" y2="156" stroke-width="1.4"/>
 </g>
-<g class="jianpu-event" data-duration-beats="2">
+<g class="jianpu-event" data-duration-beats="2" data-instrument="piano">
 <g class="jianpu-note" data-midi="67">
 <text class="jianpu-number" x="370.398" y="147">5</text>
 </g>
@@ -93,21 +93,21 @@
 <line class="jianpu-bar" x1="415.689" y1="122" x2="415.689" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="4">
-<g class="jianpu-event" data-duration-beats="1.75">
+<g class="jianpu-event" data-duration-beats="1.75" data-instrument="piano">
 <g class="jianpu-note" data-midi="69">
 <text class="jianpu-number" x="437.791" y="147">6</text>
 </g>
 <circle class="jianpu-duration-dot" cx="448.291" cy="142" r="1.8"/>
 <circle class="jianpu-duration-dot" cx="455.291" cy="142" r="1.8"/>
 </g>
-<g class="jianpu-event" data-duration-beats="0.25">
+<g class="jianpu-event" data-duration-beats="0.25" data-instrument="piano">
 <g class="jianpu-note" data-midi="71">
 <text class="jianpu-number" x="473.98" y="147">7</text>
 </g>
 <line class="jianpu-underline" x1="466.98" y1="152" x2="480.98" y2="152" stroke-width="1.4"/>
 <line class="jianpu-underline" x1="466.98" y1="156" x2="480.98" y2="156" stroke-width="1.4"/>
 </g>
-<g class="jianpu-event" data-duration-beats="2">
+<g class="jianpu-event" data-duration-beats="2" data-instrument="piano">
 <g class="jianpu-note" data-midi="60">
 <text class="jianpu-number" x="496.168" y="147">1</text>
 </g>
@@ -116,7 +116,7 @@
 <line class="jianpu-bar" x1="541.459" y1="122" x2="541.459" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="5">
-<g class="jianpu-event" data-duration-beats="4">
+<g class="jianpu-event" data-duration-beats="4" data-instrument="piano">
 <g class="jianpu-note" data-midi="62">
 <text class="jianpu-number" x="563.561" y="147">2</text>
 </g>
@@ -127,16 +127,16 @@
 <line class="jianpu-bar" x1="657.23" y1="122" x2="657.23" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="6">
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <text class="jianpu-number" x="679.332" y="147">0</text>
 </g>
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <text class="jianpu-number" x="701.52" y="147">0</text>
 </g>
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <text class="jianpu-number" x="723.709" y="147">0</text>
 </g>
-<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-event" data-duration-beats="1" data-instrument="piano">
 <text class="jianpu-number" x="745.898" y="147">0</text>
 </g>
 <line class="jianpu-bar" x1="767" y1="122" x2="767" y2="155" stroke-width="1"/>

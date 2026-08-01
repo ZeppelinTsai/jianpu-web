@@ -688,6 +688,13 @@
                   和絃記號（<code>"Dm"</code>、<code>"Am"</code>
                   等）播放時會以低音域和絃伴奏，直到下一個和絃記號出現為止。
                 </li>
+                <li>
+                  聲部（<code>V:</code>）的 <code>name=</code>
+                  決定播放音色：<code>Melody</code>／<code>Chords</code
+                  >／<code>Bass</code> 用鋼琴，<code>Guitar</code>
+                  用吉他，<code>Violin</code>／<code>Pizzicato</code>
+                  用小提琴，其餘名稱目前一律以鋼琴代打。
+                </li>
               </ul>
               <h6 class="fw-bold">簡譜文字模式</h6>
               <ul class="small mb-0">
@@ -753,6 +760,13 @@
                   Chord symbols (<code>"Dm"</code>, <code>"Am"</code>, etc.)
                   play as a low-register chord accompaniment, held until the
                   next chord symbol appears.
+                </li>
+                <li>
+                  A voice's (<code>V:</code>) <code>name=</code> picks its
+                  playback sound: <code>Melody</code>/<code>Chords</code>/
+                  <code>Bass</code> use piano, <code>Guitar</code> uses
+                  guitar, <code>Violin</code>/<code>Pizzicato</code> use
+                  violin, and any other name currently falls back to piano.
                 </li>
               </ul>
               <h6 class="fw-bold">Jianpu Text Mode</h6>
@@ -1268,6 +1282,7 @@
                 midi: note.midi,
                 offsetBeats: offsetBeats,
                 durationBeats: durationBeats,
+                instrument: event.instrument || "piano",
               };
               audioSchedule.push(entry);
               if (note.tieStart) pendingTies.set(signature, entry);
@@ -1389,16 +1404,22 @@
 
         // --- WAV export --------------------------------------------------
         // Renders the exact same schedule offline through an
-        // OfflineAudioContext, replicating piano-player.js's pitch-shift +
-        // envelope logic (that module only exposes playNote() against its
-        // own live AudioContext, so this re-fetches/decodes the same
-        // sample files rather than requiring a library change + rebuild).
+        // OfflineAudioContext, replicating instrument-player.js's
+        // pitch-shift + envelope logic (that module only exposes playNote()
+        // against its own live AudioContext, so this re-fetches/decodes the
+        // same sample files rather than requiring a library change).
 
-        var PIANO_SAMPLE_BASE_URL = "src/jianpu/piano-samples/";
+        var INSTRUMENT_SAMPLE_BASE_URLS = {
+          piano: "src/jianpu/piano-samples/",
+          guitar: "src/jianpu/guitar-acoustic-samples/",
+          violin: "src/jianpu/violin-samples/",
+        };
         var wavSampleBuffersPromise = null;
 
-        function nearestPianoSample(midiNumber) {
-          var samples = ABCJS.jianpu.pianoPlayer.samples;
+        function nearestSample(instrument, midiNumber) {
+          var samples =
+            ABCJS.jianpu.instrumentPlayer.samples[instrument] ||
+            ABCJS.jianpu.instrumentPlayer.samples.piano;
           var nearest = samples[0];
           var nearestDistance = Infinity;
           samples.forEach(function (sample) {
@@ -1415,33 +1436,45 @@
           if (wavSampleBuffersPromise) return wavSampleBuffersPromise;
           var AudioContextClass = window.AudioContext || window.webkitAudioContext;
           var decodeContext = new AudioContextClass();
+          var instruments = Object.keys(INSTRUMENT_SAMPLE_BASE_URLS);
           wavSampleBuffersPromise = Promise.all(
-            ABCJS.jianpu.pianoPlayer.samples.map(function (sample) {
-              return fetch(PIANO_SAMPLE_BASE_URL + encodeURIComponent(sample.fileName))
-                .then(function (response) {
-                  return response.arrayBuffer();
-                })
-                .then(function (arrayBuffer) {
-                  return decodeContext.decodeAudioData(arrayBuffer);
-                })
-                .then(function (audioBuffer) {
-                  return { fileName: sample.fileName, buffer: audioBuffer };
+            instruments.map(function (instrument) {
+              var baseUrl = INSTRUMENT_SAMPLE_BASE_URLS[instrument];
+              return Promise.all(
+                ABCJS.jianpu.instrumentPlayer.samples[instrument].map(function (sample) {
+                  return fetch(baseUrl + encodeURIComponent(sample.fileName))
+                    .then(function (response) {
+                      return response.arrayBuffer();
+                    })
+                    .then(function (arrayBuffer) {
+                      return decodeContext.decodeAudioData(arrayBuffer);
+                    })
+                    .then(function (audioBuffer) {
+                      return { fileName: sample.fileName, buffer: audioBuffer };
+                    });
+                }),
+              ).then(function (results) {
+                var map = {};
+                results.forEach(function (result) {
+                  map[result.fileName] = result.buffer;
                 });
+                return { instrument: instrument, map: map };
+              });
             }),
           ).then(function (results) {
-            var map = {};
+            var byInstrument = {};
             results.forEach(function (result) {
-              map[result.fileName] = result.buffer;
+              byInstrument[result.instrument] = result.map;
             });
             decodeContext.close();
-            return map;
+            return byInstrument;
           });
           return wavSampleBuffersPromise;
         }
 
-        function scheduleNoteOffline(offlineCtx, buffers, midiNumber, startSeconds, durationSeconds) {
-          var sample = nearestPianoSample(midiNumber);
-          var buffer = buffers[sample.fileName];
+        function scheduleNoteOffline(offlineCtx, buffersByInstrument, instrument, midiNumber, startSeconds, durationSeconds) {
+          var sample = nearestSample(instrument, midiNumber);
+          var buffer = (buffersByInstrument[instrument] || {})[sample.fileName];
           if (!buffer || startSeconds < 0) return;
           var source = offlineCtx.createBufferSource();
           source.buffer = buffer;
@@ -1535,6 +1568,7 @@
                 scheduleNoteOffline(
                   offlineCtx,
                   buffers,
+                  item.instrument || "piano",
                   item.midi,
                   item.offsetBeats * secondsPerBeat,
                   item.durationBeats * secondsPerBeat,
@@ -1545,6 +1579,7 @@
                   scheduleNoteOffline(
                     offlineCtx,
                     buffers,
+                    "piano",
                     midi,
                     item.offsetBeats * secondsPerBeat,
                     item.durationBeats * secondsPerBeat,
@@ -1579,7 +1614,11 @@
               totalMs = Math.max(totalMs, offsetMs + durationSeconds * 1000);
               playTimeouts.push(
                 setTimeout(function () {
-                  ABCJS.jianpu.pianoPlayer.playNote(item.midi, durationSeconds);
+                  ABCJS.jianpu.instrumentPlayer.playNote(
+                    item.instrument || "piano",
+                    item.midi,
+                    durationSeconds,
+                  );
                 }, offsetMs),
               );
             });
@@ -1603,7 +1642,11 @@
               playTimeouts.push(
                 setTimeout(function () {
                   item.midiNotes.forEach(function (midi) {
-                    ABCJS.jianpu.pianoPlayer.playNote(midi, durationSeconds);
+                    ABCJS.jianpu.instrumentPlayer.playNote(
+                      "piano",
+                      midi,
+                      durationSeconds,
+                    );
                   });
                 }, offsetMs),
               );
@@ -1664,7 +1707,11 @@
           var beats = eventEl
             ? Number(eventEl.getAttribute("data-duration-beats"))
             : 1;
-          ABCJS.jianpu.pianoPlayer.playNote(
+          var instrument = eventEl
+            ? eventEl.getAttribute("data-instrument") || "piano"
+            : "piano";
+          ABCJS.jianpu.instrumentPlayer.playNote(
+            instrument,
             midi,
             (isFinite(beats) ? beats : 1) * getSecondsPerBeat(),
           );
@@ -1702,7 +1749,12 @@
           document.title = playgroundTitle;
         });
 
-        ABCJS.jianpu.pianoPlayer.loadSamples("src/jianpu/piano-samples/");
+        Object.keys(INSTRUMENT_SAMPLE_BASE_URLS).forEach(function (instrument) {
+          ABCJS.jianpu.instrumentPlayer.loadSamples(
+            instrument,
+            INSTRUMENT_SAMPLE_BASE_URLS[instrument],
+          );
+        });
 
         document.querySelectorAll(".lang-btn").forEach(function (btn) {
           btn.addEventListener("click", function () {

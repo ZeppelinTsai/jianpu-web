@@ -149,7 +149,8 @@ function renderJianpuSvg(layout, options) {
 				(measure.index + 1) + '">');
 			measure.events.forEach(function(event) {
 				output.push('<g class="jianpu-event" data-duration-beats="' +
-					number(event.durationBeats) + '">');
+					number(event.durationBeats) + '" data-instrument="' +
+					escapeXml(event.instrument || "piano") + '">');
 				event.notePositions.forEach(function(note) {
 					var clickable = typeof note.midi === "number";
 					if (clickable) {

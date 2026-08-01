@@ -15,7 +15,10 @@
       content="貼上 ABC 譜，一鍵產生簡譜，支援點擊播放與匯出 MIDI/WAV/PDF。"
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://zeppelintsai.github.io/jianpu-web/" />
+    <meta
+      property="og:url"
+      content="https://zeppelintsai.github.io/jianpu-web/"
+    />
     <meta property="og:locale" content="zh_TW" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="ABC簡譜製作器 By ZeppelinTsai" />
@@ -421,7 +424,6 @@
         .toolbar-primary #play,
         .toolbar-primary #help {
           flex: 0 0 auto;
-          min-width: 84px;
         }
         #mode {
           width: 100%;
@@ -560,8 +562,12 @@
     </div>
     <div class="toolbar">
       <div class="toolbar-primary">
-        <label class="mode-label fw-semibold lang-zh" for="mode">輸入模式</label>
-        <label class="mode-label fw-semibold lang-en" for="mode">Input Mode</label>
+        <label class="mode-label fw-semibold lang-zh" for="mode"
+          >輸入模式</label
+        >
+        <label class="mode-label fw-semibold lang-en" for="mode"
+          >Input Mode</label
+        >
         <select
           id="mode"
           class="form-select form-select-sm"
@@ -646,7 +652,10 @@
             type="button"
             class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
           >
-            <i class="bi bi-link-45deg share-icon-default" aria-hidden="true"></i>
+            <i
+              class="bi bi-link-45deg share-icon-default"
+              aria-hidden="true"
+            ></i>
             <i class="bi bi-check-lg share-icon-copied" aria-hidden="true"></i>
             <span class="lang-zh">複製分享連結</span>
             <span class="lang-en">Copy Share Link</span>
@@ -671,7 +680,9 @@
           </button>
         </div>
         <span class="hint lang-zh">ABC 指法範例：<code>"^1"A</code></span>
-        <span class="hint lang-en">ABC fingering example: <code>"^1"A</code></span>
+        <span class="hint lang-en"
+          >ABC fingering example: <code>"^1"A</code></span
+        >
       </div>
     </div>
 
@@ -721,8 +732,8 @@
                 </li>
                 <li>
                   檔頭常用欄位：<code>T:</code> 標題、<code>C:</code>
-                  作曲、<code>M:</code>
-                  拍號、<code>K:</code> 調性、 <code>Q:</code> 速度。
+                  作曲、<code>M:</code> 拍號、<code>K:</code> 調性、
+                  <code>Q:</code> 速度。
                 </li>
                 <li>
                   和絃記號（<code>"Dm"</code>、<code>"Am"</code>
@@ -735,9 +746,10 @@
                     <tbody>
                       <tr>
                         <td>
-                          <code>Melody</code>／<code>Chords</code>／<code
-                            >Pad</code
-                          >／<code>Glockenspiel</code>
+                          <code>Melody</code
+                          >／<code>Chords</code>／<code>Pad</code>／<code
+                            >Glockenspiel</code
+                          >
                         </td>
                         <td>鋼琴</td>
                       </tr>
@@ -820,20 +832,18 @@
                   代表唱名（Do–Si），<code>0</code> 表示休止符。
                 </li>
                 <li>
-                  數字後加 <code>'</code> 升八度（可疊加
-                  <code>''</code>）、 加 <code>,</code> 降八度（可疊加
-                  <code>,,</code>）。
+                  數字後加 <code>'</code> 升八度（可疊加 <code>''</code>）、 加
+                  <code>,</code> 降八度（可疊加 <code>,,</code>）。
                 </li>
                 <li>
                   數字後加底線 <code>_</code>
                   縮短時值（一條線八分音符、兩條線十六分音符）。
                 </li>
-                <li>
-                  加 <code>.</code> 為附點，延長一半時值；可疊加多個點。
-                </li>
+                <li>加 <code>.</code> 為附點，延長一半時值；可疊加多個點。</li>
                 <li>
                   加 <code>-</code> 延長上一個音符一拍，可疊加多個
-                  <code>-</code>；效果等同圓滑線，不會重複播放，播放動畫會精準走過每個
+                  <code>-</code
+                  >；效果等同圓滑線，不會重複播放，播放動畫會精準走過每個
                   <code>-</code>。
                 </li>
                 <li><code>|</code> 為小節線，<code>|]</code> 為結束線。</li>
@@ -849,24 +859,24 @@
                   <code>'</code> to raise one.
                 </li>
                 <li>
-                  The number after a note is its duration, relative to the
-                  unit note length set by <code>L:</code>. E.g. with
+                  The number after a note is its duration, relative to the unit
+                  note length set by <code>L:</code>. E.g. with
                   <code>L:1/8</code>, <code>A6</code> means an A held for 6
                   eighth notes.
                 </li>
                 <li>
-                  <code>|</code> is a bar line, <code>||</code> is a final
-                  bar line.
+                  <code>|</code> is a bar line, <code>||</code> is a final bar
+                  line.
                 </li>
                 <li>
-                  Chord symbols or fingerings go in quotes before a note,
-                  e.g. <code>"Am"</code> shows a chord symbol,
+                  Chord symbols or fingerings go in quotes before a note, e.g.
+                  <code>"Am"</code> shows a chord symbol,
                   <code>"^1"</code> shows fingering number 1.
                 </li>
                 <li>
-                  A <code>-</code> between two notes of the same pitch is a
-                  tie: on playback they merge into one sustained note
-                  instead of re-attacking.
+                  A <code>-</code> between two notes of the same pitch is a tie:
+                  on playback they merge into one sustained note instead of
+                  re-attacking.
                 </li>
                 <li>
                   Common header fields: <code>T:</code> title,
@@ -886,9 +896,10 @@
                     <tbody>
                       <tr>
                         <td>
-                          <code>Melody</code>/<code>Chords</code>/<code
-                            >Pad</code
-                          >/<code>Glockenspiel</code>
+                          <code>Melody</code
+                          >/<code>Chords</code>/<code>Pad</code>/<code
+                            >Glockenspiel</code
+                          >
                         </td>
                         <td>Piano</td>
                       </tr>
@@ -967,8 +978,8 @@
               <h6 class="fw-bold">Jianpu Text Mode</h6>
               <ul class="small mb-0">
                 <li>
-                  Type jianpu digits <code>1</code>–<code>7</code> directly
-                  for scale degrees (Do–Si); <code>0</code> is a rest.
+                  Type jianpu digits <code>1</code>–<code>7</code> directly for
+                  scale degrees (Do–Si); <code>0</code> is a rest.
                 </li>
                 <li>
                   Add <code>'</code> after a digit to raise an octave (stack
@@ -976,23 +987,22 @@
                   (stack with <code>,,</code>).
                 </li>
                 <li>
-                  Add underline marks <code>_</code> to shorten the
-                  duration (one line = eighth note, two lines = sixteenth
-                  note).
+                  Add underline marks <code>_</code> to shorten the duration
+                  (one line = eighth note, two lines = sixteenth note).
                 </li>
                 <li>
                   Add <code>.</code> for an augmentation dot, extending the
                   duration by half; multiple dots can stack.
                 </li>
                 <li>
-                  Add <code>-</code> to extend the previous note by one
-                  beat; multiple dashes can stack. Same effect as a tie — no
-                  re-attack, and the playback animation steps precisely
-                  through each <code>-</code>.
+                  Add <code>-</code> to extend the previous note by one beat;
+                  multiple dashes can stack. Same effect as a tie — no
+                  re-attack, and the playback animation steps precisely through
+                  each <code>-</code>.
                 </li>
                 <li>
-                  <code>|</code> is a bar line, <code>|]</code> is a final
-                  bar line.
+                  <code>|</code> is a bar line, <code>|]</code> is a final bar
+                  line.
                 </li>
               </ul>
             </div>
@@ -1046,7 +1056,8 @@
             data-target="output-body"
             aria-expanded="true"
           >
-            <span class="lang-zh">簡譜 SVG</span><span class="lang-en">Jianpu SVG</span>
+            <span class="lang-zh">簡譜 SVG</span
+            ><span class="lang-en">Jianpu SVG</span>
             <span class="chevron" aria-hidden="true">▾</span>
           </button>
         </h2>
@@ -1402,7 +1413,15 @@
           return events;
         }
 
-        var CHORD_ROOT_PITCH_CLASS = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+        var CHORD_ROOT_PITCH_CLASS = {
+          C: 0,
+          D: 2,
+          E: 4,
+          F: 5,
+          G: 7,
+          A: 9,
+          B: 11,
+        };
         var CHORD_QUALITY_INTERVALS = {
           "": [0, 4, 7],
           M: [0, 4, 7],
@@ -1484,13 +1503,15 @@
                     offsetBeats - pendingChord.offsetBeats;
                   chordSchedule.push(pendingChord);
                 }
-                pendingChord = { midiNotes: midiNotes, offsetBeats: offsetBeats };
+                pendingChord = {
+                  midiNotes: midiNotes,
+                  offsetBeats: offsetBeats,
+                };
               }
             }
 
             var extensionDashes =
-              (event.durationMarks && event.durationMarks.extensionDashes) ||
-              0;
+              (event.durationMarks && event.durationMarks.extensionDashes) || 0;
             if (domEventEl && extensionDashes > 0) {
               var segmentCount = 1 + extensionDashes;
               var segmentBeats = durationBeats / segmentCount;
@@ -1570,12 +1591,30 @@
 
         function buildMidiEvents(plan, ppq) {
           var events = [];
-          function addNote(channel, midi, offsetBeats, durationBeats, velocity) {
+          function addNote(
+            channel,
+            midi,
+            offsetBeats,
+            durationBeats,
+            velocity,
+          ) {
             var startTick = Math.round(offsetBeats * ppq);
             var endTick = Math.round((offsetBeats + durationBeats) * ppq);
             if (endTick <= startTick) endTick = startTick + 1;
-            events.push({ tick: startTick, type: "on", channel: channel, note: midi, velocity: velocity });
-            events.push({ tick: endTick, type: "off", channel: channel, note: midi, velocity: 0 });
+            events.push({
+              tick: startTick,
+              type: "on",
+              channel: channel,
+              note: midi,
+              velocity: velocity,
+            });
+            events.push({
+              tick: endTick,
+              type: "off",
+              channel: channel,
+              note: midi,
+              velocity: 0,
+            });
           }
           plan.audioSchedule.forEach(function (item) {
             addNote(0, item.midi, item.offsetBeats, item.durationBeats, 100);
@@ -1603,7 +1642,9 @@
           pushDelta(0);
           var microsPerBeat = Math.round(60000000 / bpm);
           bytes.push(
-            0xff, 0x51, 0x03,
+            0xff,
+            0x51,
+            0x03,
             (microsPerBeat >> 16) & 0xff,
             (microsPerBeat >> 8) & 0xff,
             microsPerBeat & 0xff,
@@ -1629,14 +1670,26 @@
           var ppq = 480;
           var trackBytes = buildMidiTrackBytes(buildMidiEvents(plan, ppq), bpm);
           var header = [
-            0x4d, 0x54, 0x68, 0x64,
-            0x00, 0x00, 0x00, 0x06,
-            0x00, 0x00,
-            0x00, 0x01,
-            (ppq >> 8) & 0xff, ppq & 0xff,
+            0x4d,
+            0x54,
+            0x68,
+            0x64,
+            0x00,
+            0x00,
+            0x00,
+            0x06,
+            0x00,
+            0x00,
+            0x00,
+            0x01,
+            (ppq >> 8) & 0xff,
+            ppq & 0xff,
           ];
           var trackHeader = [
-            0x4d, 0x54, 0x72, 0x6b,
+            0x4d,
+            0x54,
+            0x72,
+            0x6b,
             (trackBytes.length >>> 24) & 0xff,
             (trackBytes.length >>> 16) & 0xff,
             (trackBytes.length >>> 8) & 0xff,
@@ -1650,7 +1703,10 @@
           var plan = buildPlaybackPlan(lastLayout, preview);
           var bpm = Number(playbackSpeedInput.value) || DEFAULT_PLAYBACK_BPM;
           var bytes = buildMidiFile(plan, bpm);
-          downloadBlob(new Blob([bytes], { type: "audio/midi" }), scoreFileName("mid"));
+          downloadBlob(
+            new Blob([bytes], { type: "audio/midi" }),
+            scoreFileName("mid"),
+          );
         }
 
         // --- WAV export --------------------------------------------------
@@ -1682,7 +1738,8 @@
         }
 
         function loadWavSampleBuffers(instruments) {
-          var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          var AudioContextClass =
+            window.AudioContext || window.webkitAudioContext;
           var decodeContext = new AudioContextClass();
           return Promise.all(
             instruments.map(function (instrument) {
@@ -1703,7 +1760,10 @@
                         return decodeContext.decodeAudioData(arrayBuffer);
                       })
                       .then(function (audioBuffer) {
-                        return { fileName: sample.fileName, buffer: audioBuffer };
+                        return {
+                          fileName: sample.fileName,
+                          buffer: audioBuffer,
+                        };
                       });
                   }),
                 ).then(function (results) {
@@ -1733,13 +1793,23 @@
             });
         }
 
-        function scheduleNoteOffline(offlineCtx, buffersByInstrument, instrument, midiNumber, startSeconds, durationSeconds) {
+        function scheduleNoteOffline(
+          offlineCtx,
+          buffersByInstrument,
+          instrument,
+          midiNumber,
+          startSeconds,
+          durationSeconds,
+        ) {
           var sample = nearestSample(instrument, midiNumber);
           var buffer = (buffersByInstrument[instrument] || {})[sample.fileName];
           if (!buffer || startSeconds < 0) return;
           var source = offlineCtx.createBufferSource();
           source.buffer = buffer;
-          source.playbackRate.value = Math.pow(2, (midiNumber - sample.midi) / 12);
+          source.playbackRate.value = Math.pow(
+            2,
+            (midiNumber - sample.midi) / 12,
+          );
           var gainNode = offlineCtx.createGain();
           source.connect(gainNode);
           gainNode.connect(offlineCtx.destination);
@@ -1781,13 +1851,18 @@
           view.setUint32(40, dataSize, true);
 
           var channelData = [];
-          for (var c = 0; c < numChannels; c++) channelData.push(buffer.getChannelData(c));
+          for (var c = 0; c < numChannels; c++)
+            channelData.push(buffer.getChannelData(c));
 
           var offset = 44;
           for (var i = 0; i < numFrames; i++) {
             for (var c2 = 0; c2 < numChannels; c2++) {
               var sample = Math.max(-1, Math.min(1, channelData[c2][i]));
-              view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+              view.setInt16(
+                offset,
+                sample < 0 ? sample * 0x8000 : sample * 0x7fff,
+                true,
+              );
               offset += 2;
             }
           }
@@ -1808,7 +1883,8 @@
           var totalSeconds = 1;
           function accumulate(items) {
             items.forEach(function (item) {
-              var end = (item.offsetBeats + item.durationBeats) * secondsPerBeat;
+              var end =
+                (item.offsetBeats + item.durationBeats) * secondsPerBeat;
               if (end > totalSeconds) totalSeconds = end;
             });
           }
@@ -1855,7 +1931,10 @@
               return offlineCtx.startRendering();
             })
             .then(function (renderedBuffer) {
-              downloadBlob(audioBufferToWavBlob(renderedBuffer), scoreFileName("wav"));
+              downloadBlob(
+                audioBufferToWavBlob(renderedBuffer),
+                scoreFileName("wav"),
+              );
             })
             .catch(function (error) {
               messages.className = "error";

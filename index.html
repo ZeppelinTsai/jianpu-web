@@ -35,6 +35,36 @@
         color: #555;
         font-size: 13px;
       }
+      .toolbar .play-controls {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+      }
+      .toolbar .play-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        background: white;
+        white-space: nowrap;
+      }
+      .toolbar .play-option input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        margin: 0;
+      }
+      .toolbar .play-option input[type="number"] {
+        width: 70px;
+        min-height: 34px;
+        padding: 6px 8px;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+        font: inherit;
+      }
       select,
       button {
         padding: 7px 10px;
@@ -60,13 +90,38 @@
         margin: 0 0 8px;
         font-size: 15px;
       }
-      textarea {
+      .panel-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         width: 100%;
-        height: calc(100vh - 160px);
-        min-height: 420px;
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-weight: bold;
+        font-size: 15px;
+        color: inherit;
+        cursor: pointer;
+        min-height: auto;
+      }
+      .panel-toggle .chevron {
+        transition: transform 0.15s ease;
+      }
+      .panel-toggle[aria-expanded="false"] .chevron {
+        transform: rotate(-90deg);
+      }
+      .panel-body.collapsed {
+        display: none;
+      }
+      textarea {
+        display: block;
+        width: 100%;
+        min-height: 200px;
         padding: 10px;
         border: 1px solid #aaa;
-        resize: vertical;
+        resize: none;
+        overflow: hidden;
         font:
           14px/1.5 Consolas,
           "Courier New",
@@ -112,7 +167,6 @@
           grid-template-columns: 1fr;
         }
         textarea {
-          height: 360px;
           min-height: 260px;
         }
       }
@@ -132,8 +186,16 @@
           align-items: stretch;
           gap: 8px;
         }
-        .toolbar label {
+        .toolbar > .mode-label {
           display: none;
+        }
+        .toolbar .play-controls {
+          margin-left: 0;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+        }
+        .toolbar .play-option {
+          flex: 1 0 auto;
         }
         #mode,
         #play,
@@ -144,8 +206,7 @@
           padding: 10px;
         }
         textarea {
-          height: 300px;
-          min-height: 200px;
+          min-height: 160px;
           font-size: 13px;
           white-space: pre-wrap;
           word-break: break-word;
@@ -179,6 +240,9 @@
         }
         .output-panel h2 {
           display: none;
+        }
+        .panel-body.collapsed {
+          display: block;
         }
         #preview {
           overflow: visible;
@@ -227,11 +291,22 @@
   <body>
     <h1>ABCJS 簡譜 Playground</h1>
     <div class="toolbar">
-      <label for="mode">輸入模式</label>
+      <label class="mode-label" for="mode">輸入模式</label>
       <select id="mode">
         <option value="abc">ABC 模式</option>
         <option value="text">簡譜文字模式</option>
       </select>
+      <div class="play-controls">
+        <label class="play-option" for="repeat-playback">
+          <input id="repeat-playback" type="checkbox" />
+          <span>重複播放</span>
+        </label>
+        <label class="play-option" for="playback-speed">
+          <span>速度</span>
+          <input id="playback-speed" type="number" min="10" max="500" step="1" value="100" />
+          <span>%</span>
+        </label>
+      </div>
       <button id="play" type="button">播放</button>
       <button id="print" type="button">列印／儲存 PDF</button>
       <span class="hint">ABC 指法範例：<code>"^1"A</code></span>
@@ -239,17 +314,39 @@
 
     <main class="workspace">
       <section class="panel input-panel">
-        <h2>輸入</h2>
-        <textarea
-          id="input"
-          spellcheck="false"
-          aria-label="樂譜輸入"
-        ></textarea>
+        <h2>
+          <button
+            type="button"
+            class="panel-toggle"
+            data-target="input-body"
+            aria-expanded="true"
+          >
+            輸入 <span class="chevron" aria-hidden="true">▾</span>
+          </button>
+        </h2>
+        <div class="panel-body" id="input-body">
+          <textarea
+            id="input"
+            spellcheck="false"
+            aria-label="樂譜輸入"
+          ></textarea>
+        </div>
       </section>
       <section class="panel output-panel">
-        <h2>簡譜 SVG</h2>
-        <div id="preview"></div>
-        <pre id="messages" class="ok">沒有 warnings</pre>
+        <h2>
+          <button
+            type="button"
+            class="panel-toggle"
+            data-target="output-body"
+            aria-expanded="true"
+          >
+            簡譜 SVG <span class="chevron" aria-hidden="true">▾</span>
+          </button>
+        </h2>
+        <div class="panel-body" id="output-body">
+          <div id="preview"></div>
+          <pre id="messages" class="ok">沒有 warnings</pre>
+        </div>
       </section>
     </main>
 
@@ -297,11 +394,13 @@
         var messages = document.getElementById("messages");
         var playButton = document.getElementById("play");
         var printButton = document.getElementById("print");
+        var repeatPlaybackCheckbox = document.getElementById("repeat-playback");
+        var playbackSpeedInput = document.getElementById("playback-speed");
         var debounceTimer;
         var playgroundTitle = document.title;
         var printTitle = playgroundTitle;
         var lastLayout = null;
-        var SECONDS_PER_BEAT = 60 / 120; // fixed 120bpm preview playback
+        var DEFAULT_PLAYBACK_BPM = 180;
         var playTimeouts = [];
 
         function updatePrintTitle(header) {
@@ -350,6 +449,12 @@
           playButton.textContent = "播放";
         }
 
+        function getSecondsPerBeat() {
+          var speedPercent = Number(playbackSpeedInput.value);
+          if (!isFinite(speedPercent) || speedPercent <= 0) speedPercent = 100;
+          return 60 / (DEFAULT_PLAYBACK_BPM * (speedPercent / 100));
+        }
+
         function collectPlayableEvents(layout) {
           var events = [];
           layout.lines.forEach(function (line) {
@@ -362,31 +467,68 @@
           return events;
         }
 
+        // A tie means "hold the note", not "play it again": fold each tied
+        // continuation note into the sustain of the note that started the
+        // tie instead of scheduling a second attack for it.
+        function buildPlaybackSchedule(layout) {
+          var schedule = [];
+          var pendingTies = new Map();
+          var offsetBeats = 0;
+          collectPlayableEvents(layout).forEach(function (event) {
+            var durationBeats = event.durationBeats || 1;
+            event.notePositions.forEach(function (note) {
+              if (typeof note.midi !== "number" || !isFinite(note.midi))
+                return;
+              var signature = note.number + ":" + note.octaveDots;
+              var pendingEntry = note.tieEnd
+                ? pendingTies.get(signature)
+                : null;
+              if (pendingEntry) {
+                pendingEntry.durationBeats += durationBeats;
+                if (!note.tieStart) pendingTies.delete(signature);
+                return;
+              }
+              var entry = {
+                midi: note.midi,
+                offsetBeats: offsetBeats,
+                durationBeats: durationBeats,
+              };
+              schedule.push(entry);
+              if (note.tieStart) pendingTies.set(signature, entry);
+            });
+            offsetBeats += durationBeats;
+          });
+          return schedule;
+        }
+
         function playTune() {
           if (!lastLayout) return;
           stopPlayback();
-          var offsetMs = 0;
-          collectPlayableEvents(lastLayout).forEach(function (event) {
-            var durationSeconds = (event.durationBeats || 1) * SECONDS_PER_BEAT;
-            var midiNumbers = event.notePositions
-              .map(function (note) {
-                return note.midi;
-              })
-              .filter(function (midi) {
-                return typeof midi === "number";
-              });
-            if (midiNumbers.length) {
+          var secondsPerBeat = getSecondsPerBeat();
+          var schedule = buildPlaybackSchedule(lastLayout);
+          var totalMs = 0;
+          function queuePlaybackCycle() {
+            schedule.forEach(function (item) {
+              var offsetMs = item.offsetBeats * secondsPerBeat * 1000;
+              var durationSeconds = item.durationBeats * secondsPerBeat;
+              totalMs = Math.max(totalMs, offsetMs + durationSeconds * 1000);
               playTimeouts.push(
                 setTimeout(function () {
-                  midiNumbers.forEach(function (midi) {
-                    ABCJS.jianpu.pianoPlayer.playNote(midi, durationSeconds);
-                  });
+                  ABCJS.jianpu.pianoPlayer.playNote(item.midi, durationSeconds);
                 }, offsetMs),
               );
-            }
-            offsetMs += durationSeconds * 1000;
-          });
-          playTimeouts.push(setTimeout(stopPlayback, offsetMs));
+            });
+            playTimeouts.push(
+              setTimeout(function () {
+                if (repeatPlaybackCheckbox.checked) {
+                  queuePlaybackCycle();
+                } else {
+                  stopPlayback();
+                }
+              }, totalMs),
+            );
+          }
+          queuePlaybackCycle();
           playButton.textContent = "停止";
         }
 
@@ -395,16 +537,32 @@
           debounceTimer = setTimeout(render, 220);
         }
 
+        function autoResizeTextarea() {
+          input.style.height = "auto";
+          input.style.height = input.scrollHeight + "px";
+        }
+
+        document.querySelectorAll(".panel-toggle").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var body = document.getElementById(btn.getAttribute("data-target"));
+            var collapsed = body.classList.toggle("collapsed");
+            btn.setAttribute("aria-expanded", String(!collapsed));
+          });
+        });
+
         mode.addEventListener("change", function () {
           var previousMode = mode.value === "abc" ? "text" : "abc";
           drafts[previousMode] = input.value;
           input.value = drafts[mode.value];
+          autoResizeTextarea();
           render();
         });
         input.addEventListener("input", function () {
           drafts[mode.value] = input.value;
+          autoResizeTextarea();
           scheduleRender();
         });
+        window.addEventListener("resize", autoResizeTextarea);
         preview.addEventListener("click", function (event) {
           var noteEl = event.target.closest(".jianpu-note");
           if (!noteEl) return;
@@ -416,7 +574,7 @@
             : 1;
           ABCJS.jianpu.pianoPlayer.playNote(
             midi,
-            (isFinite(beats) ? beats : 1) * SECONDS_PER_BEAT,
+            (isFinite(beats) ? beats : 1) * getSecondsPerBeat(),
           );
         });
         playButton.addEventListener("click", function () {
@@ -437,6 +595,7 @@
         ABCJS.jianpu.pianoPlayer.loadSamples("src/jianpu/piano-samples/");
 
         input.value = drafts.abc;
+        autoResizeTextarea();
         render();
       })();
     </script>

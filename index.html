@@ -8,6 +8,10 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+      rel="stylesheet"
+    />
     <script src="dist/abcjs-basic.js"></script>
     <style>
       * {
@@ -32,6 +36,7 @@
         display: flex;
         flex-wrap: wrap;
         align-items: center;
+        justify-content: flex-start;
         gap: 10px;
         margin-bottom: 14px;
         padding: 12px 14px;
@@ -43,8 +48,16 @@
       .toolbar .hint {
         color: #64748b;
         font-size: 13px;
+        margin-left: 0;
+        text-align: left;
       }
       .toolbar .play-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .toolbar .control-stack {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -90,6 +103,7 @@
         padding: 12px;
         border: 1px solid #ccc;
         background: white;
+        text-align: left;
       }
       .panel h2 {
         margin: 0 0 8px;
@@ -145,6 +159,27 @@
         max-width: 100%;
         height: auto;
       }
+      #preview .jianpu-number,
+      #preview .jianpu-accidental,
+      #preview .jianpu-underline,
+      #preview .jianpu-extension,
+      #preview .jianpu-duration-dot,
+      #preview .jianpu-octave-dot {
+        transition:
+          fill 0.1s ease,
+          stroke 0.1s ease;
+      }
+      #preview .jianpu-event.jianpu-playing .jianpu-number,
+      #preview .jianpu-event.jianpu-playing .jianpu-accidental {
+        fill: #1a73e8;
+      }
+      #preview .jianpu-event.jianpu-playing .jianpu-underline,
+      #preview .jianpu-event.jianpu-playing .jianpu-extension,
+      #preview .jianpu-event.jianpu-playing .jianpu-duration-dot,
+      #preview .jianpu-event.jianpu-playing .jianpu-octave-dot {
+        stroke: #1a73e8;
+        fill: #1a73e8;
+      }
       #messages {
         margin: 10px 0 0;
         padding: 10px;
@@ -191,21 +226,44 @@
           align-items: stretch;
           gap: 8px;
         }
-        .toolbar > .mode-label {
+        .toolbar .mode-label {
           display: none;
+        }
+        .toolbar .control-stack {
+          width: 100%;
+          justify-content: flex-start;
+          gap: 6px;
+        }
+        .toolbar .control-stack:last-of-type {
+          flex-wrap: nowrap;
         }
         .toolbar .play-controls {
           margin-left: 0;
-          flex-wrap: nowrap;
-          overflow-x: auto;
+          flex-wrap: wrap;
+          gap: 6px;
+          width: 100%;
         }
         .toolbar .play-option {
-          flex: 1 0 auto;
+          flex: 1 1 calc(50% - 6px);
+          padding: 5px 8px;
+          gap: 4px;
         }
-        #mode,
-        #play,
-        #print {
+        .toolbar .play-option .form-control {
+          width: 56px;
+          min-height: 30px;
+          padding: 4px 6px;
+        }
+        .toolbar .control-stack #play {
+          flex: 0 0 auto;
+          min-width: 84px;
+        }
+        #mode {
           width: 100%;
+        }
+        #print,
+        #help {
+          flex: 1 1 0;
+          width: auto;
         }
         .panel {
           padding: 10px;
@@ -296,7 +354,7 @@
   <body>
     <h1 class="fw-bold">ABCJS 簡譜 Playground</h1>
     <div class="toolbar">
-      <div class="d-flex flex-wrap align-items-center gap-2 me-auto">
+      <div class="control-stack">
         <label class="mode-label fw-semibold" for="mode">輸入模式</label>
         <select
           id="mode"
@@ -306,34 +364,39 @@
           <option value="abc">ABC 模式</option>
           <option value="text">簡譜文字模式</option>
         </select>
-        <div class="play-controls">
-          <label class="play-option" for="repeat-playback">
-            <input
-              id="repeat-playback"
-              class="form-check-input"
-              type="checkbox"
-            />
-            <span>重複播放</span>
-          </label>
-          <label class="play-option" for="playback-speed">
-            <span>速度</span>
-            <input
-              id="playback-speed"
-              class="form-control form-control-sm"
-              type="number"
-              min="10"
-              max="500"
-              step="1"
-              value="100"
-            />
-            <span>%</span>
-          </label>
-        </div>
-      </div>
-      <div class="d-flex flex-wrap align-items-center gap-2">
-        <button id="play" type="button" class="btn btn-primary btn-sm">
-          播放
+        <button
+          id="play"
+          type="button"
+          class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1"
+        >
+          <i class="bi bi-play-fill" aria-hidden="true"></i>
+          <span class="play-label">播放</span>
         </button>
+      </div>
+      <div class="play-controls">
+        <label class="play-option" for="repeat-playback">
+          <input
+            id="repeat-playback"
+            class="form-check-input"
+            type="checkbox"
+          />
+          <span>重複播放</span>
+        </label>
+        <label class="play-option" for="playback-speed">
+          <span>速度</span>
+          <input
+            id="playback-speed"
+            class="form-control form-control-sm"
+            type="number"
+            min="10"
+            max="500"
+            step="1"
+            value="120"
+          />
+          <span>BPM</span>
+        </label>
+      </div>
+      <div class="control-stack">
         <button
           id="print"
           type="button"
@@ -341,8 +404,104 @@
         >
           列印／儲存 PDF
         </button>
+        <button
+          id="help"
+          type="button"
+          class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1"
+          data-bs-toggle="modal"
+          data-bs-target="#helpModal"
+        >
+          <i class="bi bi-question-circle" aria-hidden="true"></i>
+          <span>使用說明</span>
+        </button>
       </div>
       <span class="hint">ABC 指法範例：<code>"^1"A</code></span>
+    </div>
+
+    <div
+      class="modal fade"
+      id="helpModal"
+      tabindex="-1"
+      aria-labelledby="helpModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="helpModalLabel">使用說明</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <h6 class="fw-bold">ABC 模式</h6>
+            <ul class="small mb-3">
+              <li>
+                <code>C D E F G A B</code> 為基準音，小寫字母
+                <code>c d e f g a b</code> 高一個八度；音符後加
+                <code>,</code> 降八度、加 <code>'</code> 升八度。
+              </li>
+              <li>
+                音符後面的數字是時值，以 <code>L:</code>
+                設定的單位音符長度為基準，例如 <code>L:1/8</code> 時
+                <code>A6</code> 代表 A 音維持 6 個八分音符長。
+              </li>
+              <li>
+                <code>|</code> 為小節線，<code>||</code> 為結束線。
+              </li>
+              <li>
+                和絃或指法用引號標註在音符前，例如
+                <code>"Am"</code> 顯示和絃、<code>"^1"</code>
+                顯示指法數字 1。
+              </li>
+              <li>
+                同音之間加 <code>-</code>
+                表示圓滑線（tie），播放時會合併成一個持續音，不會重複觸發。
+              </li>
+              <li>
+                檔頭常用欄位：<code>T:</code> 標題、<code>C:</code>
+                作曲、<code>M:</code> 拍號、<code>K:</code> 調性、
+                <code>Q:</code> 速度。
+              </li>
+            </ul>
+            <h6 class="fw-bold">簡譜文字模式</h6>
+            <ul class="small mb-0">
+              <li>
+                直接輸入簡譜數字 <code>1</code>–<code>7</code>
+                代表唱名（Do–Si），<code>0</code> 表示休止符。
+              </li>
+              <li>
+                數字後加 <code>'</code> 升八度（可疊加 <code>''</code>）、
+                加 <code>,</code> 降八度（可疊加 <code>,,</code>）。
+              </li>
+              <li>
+                數字後加底線 <code>_</code>
+                縮短時值（一條線八分音符、兩條線十六分音符）。
+              </li>
+              <li>
+                加 <code>.</code> 為附點，延長一半時值；可疊加多個點。
+              </li>
+              <li>
+                加 <code>-</code> 延長上一個音符一拍，可疊加多個
+                <code>-</code>；效果等同圓滑線，不會重複播放。
+              </li>
+              <li><code>|</code> 為小節線，<code>|]</code> 為結束線。</li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              data-bs-dismiss="modal"
+            >
+              關閉
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <main class="workspace">
@@ -383,6 +542,7 @@
       </section>
     </main>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       (function () {
         "use strict";
@@ -426,6 +586,8 @@
         var preview = document.getElementById("preview");
         var messages = document.getElementById("messages");
         var playButton = document.getElementById("play");
+        var playIcon = playButton.querySelector(".bi");
+        var playLabel = playButton.querySelector(".play-label");
         var printButton = document.getElementById("print");
         var repeatPlaybackCheckbox = document.getElementById("repeat-playback");
         var playbackSpeedInput = document.getElementById("playback-speed");
@@ -435,6 +597,7 @@
         var lastLayout = null;
         var DEFAULT_PLAYBACK_BPM = 180;
         var playTimeouts = [];
+        var playing = false;
 
         function updatePrintTitle(header) {
           var parts = [];
@@ -476,10 +639,24 @@
           }
         }
 
+        function setPlayingUI(isPlaying) {
+          playing = isPlaying;
+          playIcon.classList.toggle("bi-play-fill", !isPlaying);
+          playIcon.classList.toggle("bi-stop-fill", isPlaying);
+          playLabel.textContent = isPlaying ? "停止" : "播放";
+        }
+
+        function clearHighlights() {
+          preview.querySelectorAll(".jianpu-playing").forEach(function (el) {
+            el.classList.remove("jianpu-playing");
+          });
+        }
+
         function stopPlayback() {
           playTimeouts.forEach(clearTimeout);
           playTimeouts = [];
-          playButton.textContent = "播放";
+          clearHighlights();
+          setPlayingUI(false);
         }
 
         function getSecondsPerBeat() {
@@ -502,13 +679,27 @@
 
         // A tie means "hold the note", not "play it again": fold each tied
         // continuation note into the sustain of the note that started the
-        // tie instead of scheduling a second attack for it.
-        function buildPlaybackSchedule(layout) {
-          var schedule = [];
+        // tie instead of scheduling a second attack for it. Alongside the
+        // audio schedule, build a per-rendered-event highlight schedule so
+        // the score can show a playhead moving across the notes as they
+        // sound (ties included, since the notated position still advances
+        // even though the audio doesn't re-attack).
+        function buildPlaybackPlan(layout, previewEl) {
+          var domEvents = previewEl.querySelectorAll(".jianpu-event");
+          var audioSchedule = [];
+          var highlightSchedule = [];
           var pendingTies = new Map();
           var offsetBeats = 0;
-          collectPlayableEvents(layout).forEach(function (event) {
+          collectPlayableEvents(layout).forEach(function (event, eventIndex) {
             var durationBeats = event.durationBeats || 1;
+            var domEventEl = domEvents[eventIndex] || null;
+            if (domEventEl) {
+              highlightSchedule.push({
+                element: domEventEl,
+                offsetBeats: offsetBeats,
+                durationBeats: durationBeats,
+              });
+            }
             event.notePositions.forEach(function (note) {
               if (typeof note.midi !== "number" || !isFinite(note.midi)) return;
               var signature = note.number + ":" + note.octaveDots;
@@ -525,28 +716,40 @@
                 offsetBeats: offsetBeats,
                 durationBeats: durationBeats,
               };
-              schedule.push(entry);
+              audioSchedule.push(entry);
               if (note.tieStart) pendingTies.set(signature, entry);
             });
             offsetBeats += durationBeats;
           });
-          return schedule;
+          return { audioSchedule: audioSchedule, highlightSchedule: highlightSchedule };
         }
 
         function playTune() {
           if (!lastLayout) return;
           stopPlayback();
           var secondsPerBeat = getSecondsPerBeat();
-          var schedule = buildPlaybackSchedule(lastLayout);
+          var plan = buildPlaybackPlan(lastLayout, preview);
           var totalMs = 0;
           function queuePlaybackCycle() {
-            schedule.forEach(function (item) {
+            totalMs = 0;
+            plan.audioSchedule.forEach(function (item) {
               var offsetMs = item.offsetBeats * secondsPerBeat * 1000;
               var durationSeconds = item.durationBeats * secondsPerBeat;
               totalMs = Math.max(totalMs, offsetMs + durationSeconds * 1000);
               playTimeouts.push(
                 setTimeout(function () {
                   ABCJS.jianpu.pianoPlayer.playNote(item.midi, durationSeconds);
+                }, offsetMs),
+              );
+            });
+            plan.highlightSchedule.forEach(function (item) {
+              var offsetMs = item.offsetBeats * secondsPerBeat * 1000;
+              var durationMs = item.durationBeats * secondsPerBeat * 1000;
+              totalMs = Math.max(totalMs, offsetMs + durationMs);
+              playTimeouts.push(
+                setTimeout(function () {
+                  clearHighlights();
+                  item.element.classList.add("jianpu-playing");
                 }, offsetMs),
               );
             });
@@ -561,7 +764,7 @@
             );
           }
           queuePlaybackCycle();
-          playButton.textContent = "停止";
+          setPlayingUI(true);
         }
 
         function scheduleRender() {
@@ -610,7 +813,7 @@
           );
         });
         playButton.addEventListener("click", function () {
-          if (playButton.textContent === "停止") stopPlayback();
+          if (playing) stopPlayback();
           else playTune();
         });
         printButton.addEventListener("click", function () {

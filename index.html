@@ -866,7 +866,46 @@
           "zh-Hant": "樂譜輸入",
           en: "Score input",
         };
-        var currentLang = "zh-Hant";
+        var currentLang = "en";
+        var STATE_KEY = "jianpu-state";
+
+        // Detect a default UI language from the browser's own locale
+        // (used only when there's no saved preference yet); anything that
+        // isn't recognizably Chinese falls back to English.
+        function detectDefaultLang() {
+          var browserLang = (
+            navigator.language ||
+            (navigator.languages && navigator.languages[0]) ||
+            ""
+          ).toLowerCase();
+          return browserLang.indexOf("zh") === 0 ? "zh-Hant" : "en";
+        }
+
+        function saveState() {
+          try {
+            localStorage.setItem(
+              STATE_KEY,
+              JSON.stringify({
+                lang: currentLang,
+                mode: mode.value,
+                speed: playbackSpeedInput.value,
+                repeat: repeatPlaybackCheckbox.checked,
+                drafts: drafts,
+              }),
+            );
+          } catch (error) {
+            // localStorage unavailable (e.g. privacy mode) — ignore.
+          }
+        }
+
+        function loadState() {
+          try {
+            var raw = localStorage.getItem(STATE_KEY);
+            return raw ? JSON.parse(raw) : null;
+          } catch (error) {
+            return null;
+          }
+        }
 
         function updatePrintTitle(header) {
           var parts = [];
@@ -891,9 +930,7 @@
         }
 
         function applyLanguage(lang) {
-          currentLang = MODE_OPTION_TEXT.hasOwnProperty(lang)
-            ? lang
-            : "zh-Hant";
+          currentLang = MODE_OPTION_TEXT.hasOwnProperty(lang) ? lang : "en";
           document.documentElement.classList.toggle(
             "ui-en",
             currentLang === "en",
@@ -912,11 +949,7 @@
               btn.getAttribute("data-lang") === currentLang,
             );
           });
-          try {
-            localStorage.setItem("jianpu-lang", currentLang);
-          } catch (error) {
-            // localStorage unavailable (e.g. privacy mode) — ignore.
-          }
+          saveState();
         }
 
         // Sync the BPM field to the tune's own Q: tempo (rendered as a
@@ -951,6 +984,7 @@
             messages.className = "error";
             messages.textContent = error.name + ": " + error.message;
           }
+          saveState();
         }
 
         function setPlayingUI(isPlaying) {
@@ -1227,6 +1261,8 @@
           autoResizeTextarea();
           scheduleRender();
         });
+        repeatPlaybackCheckbox.addEventListener("change", saveState);
+        playbackSpeedInput.addEventListener("input", saveState);
         window.addEventListener("resize", autoResizeTextarea);
         preview.addEventListener("click", function (event) {
           var noteEl = event.target.closest(".jianpu-note");
@@ -1264,15 +1300,27 @@
             applyLanguage(btn.getAttribute("data-lang"));
           });
         });
-        var storedLang = null;
-        try {
-          storedLang = localStorage.getItem("jianpu-lang");
-        } catch (error) {
-          // localStorage unavailable (e.g. privacy mode) — ignore.
-        }
-        applyLanguage(storedLang || "zh-Hant");
 
-        input.value = drafts.abc;
+        // Restore everything from last time — score drafts, mode, speed,
+        // repeat, and language — if this browser has saved state. First
+        // visit falls back to the built-in example scores and picks a UI
+        // language from the browser's own locale (Chinese if it looks
+        // Chinese, English otherwise).
+        var savedState = loadState();
+        if (savedState) {
+          if (savedState.drafts && typeof savedState.drafts.abc === "string")
+            drafts.abc = savedState.drafts.abc;
+          if (savedState.drafts && typeof savedState.drafts.text === "string")
+            drafts.text = savedState.drafts.text;
+          if (savedState.mode === "abc" || savedState.mode === "text")
+            mode.value = savedState.mode;
+          if (savedState.speed) playbackSpeedInput.value = savedState.speed;
+          if (typeof savedState.repeat === "boolean")
+            repeatPlaybackCheckbox.checked = savedState.repeat;
+        }
+        applyLanguage((savedState && savedState.lang) || detectDefaultLang());
+
+        input.value = drafts[mode.value];
         autoResizeTextarea();
         render();
       })();

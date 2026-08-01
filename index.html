@@ -845,7 +845,7 @@
         var playgroundTitle = document.title;
         var printTitle = playgroundTitle;
         var lastLayout = null;
-        var DEFAULT_PLAYBACK_BPM = 180;
+        var DEFAULT_PLAYBACK_BPM = 120;
         var playTimeouts = [];
         var playing = false;
         var lastWarnings = [];
@@ -919,6 +919,20 @@
           }
         }
 
+        // Sync the BPM field to the tune's own Q: tempo (rendered as a
+        // "♩=180"-style label) whenever the score declares one, unless the
+        // value falls outside the field's own reasonable min/max range.
+        function applyTempoFromHeader(header) {
+          if (!header || !header.tempoLabel) return;
+          var match = /([\d.]+)/.exec(header.tempoLabel);
+          if (!match) return;
+          var bpm = Number(match[1]);
+          var min = Number(playbackSpeedInput.min);
+          var max = Number(playbackSpeedInput.max);
+          if (!isFinite(bpm) || bpm < min || bpm > max) return;
+          playbackSpeedInput.value = Math.round(bpm);
+        }
+
         function render() {
           try {
             var options = { staffWidth: 800 };
@@ -928,6 +942,7 @@
                 : ABCJS.jianpu.fromText(input.value, options);
             preview.innerHTML = result.svg;
             updatePrintTitle(result.layout && result.layout.header);
+            applyTempoFromHeader(result.layout && result.layout.header);
             showMessages(result.warnings);
             lastLayout = result.layout;
           } catch (error) {
@@ -960,9 +975,9 @@
         }
 
         function getSecondsPerBeat() {
-          var speedPercent = Number(playbackSpeedInput.value);
-          if (!isFinite(speedPercent) || speedPercent <= 0) speedPercent = 100;
-          return 60 / (DEFAULT_PLAYBACK_BPM * (speedPercent / 100));
+          var bpm = Number(playbackSpeedInput.value);
+          if (!isFinite(bpm) || bpm <= 0) bpm = DEFAULT_PLAYBACK_BPM;
+          return 60 / bpm;
         }
 
         function collectPlayableEvents(layout) {

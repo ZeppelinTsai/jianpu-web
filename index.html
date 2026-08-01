@@ -63,13 +63,15 @@
         align-items: center;
         gap: 8px;
       }
+      .toolbar .control-stack.play-stack {
+        position: relative;
+      }
       .toolbar .play-toolbar {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 8px;
         margin-left: auto;
-        position: relative;
       }
       .toolbar .play-toolbar.collapsed {
         display: none;
@@ -270,6 +272,8 @@
         .toolbar .play-toolbar {
           width: 100%;
           margin-left: 0;
+        }
+        .toolbar .control-stack.play-stack {
           padding-right: 48px;
         }
         .toolbar .collapse-toggle {
@@ -394,7 +398,7 @@
   <body>
     <h1 class="fw-bold">ABCJS 簡譜 Playground</h1>
     <div class="toolbar">
-      <div class="control-stack">
+      <div class="control-stack play-stack">
         <label class="mode-label fw-semibold" for="mode">輸入模式</label>
         <select
           id="mode"
@@ -411,6 +415,15 @@
         >
           <i class="bi bi-play-fill" aria-hidden="true"></i>
           <span class="play-label">播放</span>
+        </button>
+        <button
+          id="playToggle"
+          type="button"
+          class="collapse-toggle"
+          aria-expanded="true"
+          aria-controls="playToolbar"
+        >
+          <i class="bi bi-chevron-up" aria-hidden="true"></i>
         </button>
       </div>
       <div class="play-toolbar" id="playToolbar">
@@ -438,15 +451,6 @@
           </label>
         </div>
       </div>
-      <button
-        id="playToggle"
-        type="button"
-        class="collapse-toggle"
-        aria-expanded="true"
-        aria-controls="playToolbar"
-      >
-        <i class="bi bi-chevron-up" aria-hidden="true"></i>
-      </button>
       <div class="control-stack">
         <button
           id="print"

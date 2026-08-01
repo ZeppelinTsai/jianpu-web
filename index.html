@@ -303,7 +303,14 @@
         </label>
         <label class="play-option" for="playback-speed">
           <span>速度</span>
-          <input id="playback-speed" type="number" min="10" max="500" step="1" value="100" />
+          <input
+            id="playback-speed"
+            type="number"
+            min="10"
+            max="500"
+            step="1"
+            value="100"
+          />
           <span>%</span>
         </label>
       </div>
@@ -477,8 +484,7 @@
           collectPlayableEvents(layout).forEach(function (event) {
             var durationBeats = event.durationBeats || 1;
             event.notePositions.forEach(function (note) {
-              if (typeof note.midi !== "number" || !isFinite(note.midi))
-                return;
+              if (typeof note.midi !== "number" || !isFinite(note.midi)) return;
               var signature = note.number + ":" + note.octaveDots;
               var pendingEntry = note.tieEnd
                 ? pendingTies.get(signature)

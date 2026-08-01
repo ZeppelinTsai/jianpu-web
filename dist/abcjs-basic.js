@@ -2680,12 +2680,14 @@ function durationMarks(representation) {
  *     key:Object,
  *     keyAccidentals:Map,
  *     measureAccidentals:Map,
- *     warnings:string[]
+ *     warnings:string[],
+ *     instrument:string
  *   },
  *   convertNote:function(Object):Array<Object>,
  *   getEffectiveAccidental:function(Object):(string|null),
  *   resetBar:function():void,
- *   setKey:function(Object):void
+ *   setKey:function(Object):void,
+ *   setInstrument:function(string):void
  * }}
  */
 function createJianpuConverter(initialKey) {
@@ -2693,7 +2695,8 @@ function createJianpuConverter(initialKey) {
     key: cloneKey(initialKey),
     keyAccidentals: new Map(),
     measureAccidentals: new Map(),
-    warnings: []
+    warnings: [],
+    instrument: "piano"
   };
   function setKey(key) {
     context.key = cloneKey(key);
@@ -2702,6 +2705,9 @@ function createJianpuConverter(initialKey) {
   }
   function resetBar() {
     context.measureAccidentals.clear();
+  }
+  function setInstrument(instrument) {
+    context.instrument = instrument || "piano";
   }
   function getEffectiveAccidental(pitch) {
     var measureAccidental = context.measureAccidentals.get(pitchIdentity(pitch));
@@ -2746,7 +2752,8 @@ function createJianpuConverter(initialKey) {
         octaveDots: 0,
         accidentalMark: null
       }],
-      durationMarks: marks
+      durationMarks: marks,
+      instrument: context.instrument
     };
   }
   function convertRest(representation) {
@@ -2777,7 +2784,8 @@ function createJianpuConverter(initialKey) {
     }
     var event = {
       notes: note.pitches.map(convertPitch),
-      durationMarks: durationMarks(representation)
+      durationMarks: durationMarks(representation),
+      instrument: context.instrument
     };
     if (note.chord) {
       event.chordSymbols = note.chord.filter(function (chord) {
@@ -2810,7 +2818,8 @@ function createJianpuConverter(initialKey) {
     convertNote: convertNote,
     getEffectiveAccidental: getEffectiveAccidental,
     resetBar: resetBar,
-    setKey: setKey
+    setKey: setKey,
+    setInstrument: setInstrument
   };
 }
 module.exports = createJianpuConverter;
@@ -2829,8 +2838,29 @@ module.exports = createJianpuConverter;
 var createJianpuConverter = __webpack_require__(/*! ./create-jianpu-converter */ "./src/jianpu/create-jianpu-converter.js");
 var layoutJianpu = __webpack_require__(/*! ./layout-jianpu */ "./src/jianpu/layout-jianpu.js");
 var parseJianpu = __webpack_require__(/*! ./parse-jianpu */ "./src/jianpu/parse-jianpu.js");
-var pianoPlayer = __webpack_require__(/*! ./piano-player */ "./src/jianpu/piano-player.js");
+var instrumentPlayer = __webpack_require__(/*! ./instrument-player */ "./src/jianpu/instrument-player.js");
 var renderJianpuSvg = __webpack_require__(/*! ./render-jianpu-svg */ "./src/jianpu/render-jianpu-svg.js");
+
+// Case-insensitive lookup from a V: voice's name= attribute to the
+// instrument sample pack used to play back its notes. Anything not listed
+// here (or a voice with no name= at all) falls back to "piano".
+var NAME_TO_INSTRUMENT = {
+  'melody': 'piano',
+  'chords': 'piano',
+  'bass': 'piano',
+  'guitar': 'guitar',
+  'violin': 'violin',
+  'harp': 'piano',
+  'flute': 'piano',
+  'pad': 'piano',
+  'glockenspiel': 'piano',
+  'pizzicato': 'violin'
+};
+function instrumentFromVoiceName(name) {
+  if (!name) return "piano";
+  var key = String(name).trim().toLowerCase();
+  return NAME_TO_INSTRUMENT[key] || "piano";
+}
 function keyLabelFromStaffKey(key) {
   key = key || {};
   var tonic = (key.root || "C") + (key.acc || "");
@@ -2873,6 +2903,11 @@ function convertAbcTune(tune) {
     var staff = line.staff[0];
     if (!staff.voices || !staff.voices[0]) return;
     if (staff.voices.length > 1) warnings.push("Only the first voice is rendered in this playground.");
+
+    // staff.title[0], when present, is voice 0's name= attribute (only
+    // populated on the music line where the voice was first declared);
+    // keep using the last-resolved instrument on subsequent lines.
+    if (staff.title && staff.title[0]) converter.setInstrument(instrumentFromVoiceName(staff.title[0]));
     staff.voices[0].forEach(function (element) {
       if (element.el_type === "bar") {
         converter.resetBar();
@@ -2940,8 +2975,188 @@ module.exports = {
   createJianpuConverter: createJianpuConverter,
   layoutJianpu: layoutJianpu,
   parseJianpu: parseJianpu,
-  pianoPlayer: pianoPlayer,
+  instrumentPlayer: instrumentPlayer,
   renderJianpuSvg: renderJianpuSvg
+};
+
+/***/ }),
+
+/***/ "./src/jianpu/instrument-player.js":
+/*!*****************************************!*\
+  !*** ./src/jianpu/instrument-player.js ***!
+  \*****************************************/
+/***/ (function(module) {
+
+"use strict";
+
+
+// Minimal browser-only sample player used to click-to-play jianpu notes.
+// Supports three instrument sample packs, each of which only recorded a
+// handful of notes across their range; every other pitch is played back by
+// pitch-shifting the nearest sample.
+//
+// Sample naming conventions differ per pack:
+//   piano:  "<note><octave>v10.mp3", sharps written as "#" (e.g. "D#4v10.mp3")
+//   guitar: "<note><octave>.mp3",    sharps written as "s" (e.g. "As2.mp3")
+//   violin: "<note><octave>.mp3",    no sharps in this pack
+var DEFAULT_INSTRUMENT = "piano";
+var NOTE_SEMITONES = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11
+};
+function midiFromNoteName(name) {
+  // Accepts both "#" (piano) and "s" (guitar/violin) sharp notation.
+  var match = /^([A-G])(#|s)?(-?\d+)$/.exec(name);
+  if (!match) return null;
+  var semitone = NOTE_SEMITONES[match[1]] + (match[2] ? 1 : 0);
+  return (Number(match[3]) + 1) * 12 + semitone;
+}
+var PIANO_NOTE_NAMES = ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "D#1", "D#2", "D#3", "D#4", "D#5", "D#6", "D#7", "F#1", "F#2", "F#3", "F#4", "F#5", "F#6", "F#7"];
+var GUITAR_NOTE_NAMES = ["A2", "A3", "A4", "As2", "As3", "As4", "B2", "B3", "B4", "C3", "C4", "C5", "Cs3", "Cs4", "Cs5", "D2", "D3", "D4", "D5", "Ds2", "Ds3", "Ds4", "E2", "E3", "E4", "F2", "F3", "F4", "Fs2", "Fs3", "Fs4", "G2", "G3", "G4", "Gs2", "Gs3", "Gs4"];
+var VIOLIN_NOTE_NAMES = ["A3", "A4", "A5", "A6", "C4", "C5", "C6", "C7", "E4", "E5", "E6", "G3", "G4", "G5", "G6"];
+function pianoFileName(name) {
+  return name + "v10.mp3";
+}
+function plainFileName(name) {
+  return name + ".mp3";
+}
+function buildSamples(noteNames, fileNameFor) {
+  return noteNames.map(function (name) {
+    return {
+      name: name,
+      fileName: fileNameFor(name),
+      midi: midiFromNoteName(name)
+    };
+  });
+}
+var INSTRUMENTS = {
+  piano: {
+    sampleDir: "./piano-samples/",
+    samples: buildSamples(PIANO_NOTE_NAMES, pianoFileName)
+  },
+  guitar: {
+    sampleDir: "./guitar-acoustic-samples/",
+    samples: buildSamples(GUITAR_NOTE_NAMES, plainFileName)
+  },
+  violin: {
+    sampleDir: "./violin-samples/",
+    samples: buildSamples(VIOLIN_NOTE_NAMES, plainFileName)
+  }
+};
+
+// Public map of instrument -> sample list, e.g. instrumentPlayer.samples.guitar
+var samples = {};
+Object.keys(INSTRUMENTS).forEach(function (instrument) {
+  samples[instrument] = INSTRUMENTS[instrument].samples;
+});
+function normalizeInstrument(instrument) {
+  var key = String(instrument || "").toLowerCase();
+  return INSTRUMENTS[key] ? key : DEFAULT_INSTRUMENT;
+}
+var audioContext = null;
+var buffers = {}; // instrument -> (fileName -> decoded AudioBuffer)
+var loadingPromises = {}; // instrument -> Promise
+
+Object.keys(INSTRUMENTS).forEach(function (instrument) {
+  buffers[instrument] = {};
+});
+function getAudioContext() {
+  if (!audioContext) {
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContextClass();
+  }
+  return audioContext;
+}
+function loadSample(instrument, sample, baseUrl) {
+  // Encode only the filename: sample names can contain "#", which a
+  // relative URL would otherwise parse as a fragment separator.
+  return fetch(baseUrl + encodeURIComponent(sample.fileName)).then(function (response) {
+    if (!response.ok) throw new Error("Could not load " + instrument + " sample " + sample.fileName);
+    return response.arrayBuffer();
+  }).then(function (arrayBuffer) {
+    return getAudioContext().decodeAudioData(arrayBuffer);
+  }).then(function (audioBuffer) {
+    buffers[instrument][sample.fileName] = audioBuffer;
+  });
+}
+
+/**
+ * Pre-load and decode all samples for one instrument.
+ * @param {string} [instrument] "piano" (default), "guitar", or "violin".
+ *   Any unrecognized or missing value falls back to "piano".
+ * @param {string} [baseUrl] Directory containing that instrument's mp3 files.
+ * @returns {Promise}
+ */
+function loadSamples(instrument, baseUrl) {
+  instrument = normalizeInstrument(instrument);
+  if (!loadingPromises[instrument]) {
+    baseUrl = baseUrl || INSTRUMENTS[instrument].sampleDir;
+    loadingPromises[instrument] = Promise.all(INSTRUMENTS[instrument].samples.map(function (sample) {
+      return loadSample(instrument, sample, baseUrl);
+    }));
+  }
+  return loadingPromises[instrument];
+}
+function nearestSample(instrument, midiNumber) {
+  var instrumentSamples = INSTRUMENTS[instrument].samples;
+  var nearest = instrumentSamples[0];
+  var nearestDistance = Infinity;
+  instrumentSamples.forEach(function (sample) {
+    var distance = Math.abs(sample.midi - midiNumber);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = sample;
+    }
+  });
+  return nearest;
+}
+
+/**
+ * Play the sample nearest to midiNumber, pitch-shifted to the exact note.
+ * @param {string} [instrument] "piano" (default), "guitar", or "violin".
+ *   Any unrecognized or missing value falls back to "piano".
+ * @param {number} midiNumber MIDI note number (60 = middle C).
+ * @param {number} [duration] Seconds to hold the note before releasing.
+ * @returns {AudioBufferSourceNode|null}
+ */
+function playNote(instrument, midiNumber, duration) {
+  instrument = normalizeInstrument(instrument);
+  if (typeof midiNumber !== "number" || !isFinite(midiNumber)) return null;
+  var sample = nearestSample(instrument, midiNumber);
+  var buffer = buffers[instrument][sample.fileName];
+  if (!buffer) {
+    loadSamples(instrument).then(function () {
+      playNote(instrument, midiNumber, duration);
+    });
+    return null;
+  }
+  var context = getAudioContext();
+  if (context.state === "suspended") context.resume();
+  var source = context.createBufferSource();
+  source.buffer = buffer;
+  source.playbackRate.value = Math.pow(2, (midiNumber - sample.midi) / 12);
+  var gainNode = context.createGain();
+  source.connect(gainNode);
+  gainNode.connect(context.destination);
+  var seconds = typeof duration === "number" && duration > 0 ? duration : 0.8;
+  var releaseStart = Math.max(0, seconds - 0.08);
+  var now = context.currentTime;
+  gainNode.gain.setValueAtTime(1, now);
+  gainNode.gain.setValueAtTime(1, now + releaseStart);
+  gainNode.gain.linearRampToValueAtTime(0.0001, now + seconds);
+  source.start(now);
+  source.stop(now + seconds + 0.05);
+  return source;
+}
+module.exports = {
+  samples: samples,
+  loadSamples: loadSamples,
+  playNote: playNote
 };
 
 /***/ }),
@@ -3341,6 +3556,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         start: false,
         end: false
       }, event.source.beam);
+      event.instrument = event.source.instrument || "piano";
       var highDotTop = baselineY - options.numberTopOffset - options.octaveDotRadius;
       event.notePositions.forEach(function (note) {
         note.octaveDotPositions.forEach(function (dot) {
@@ -3887,138 +4103,6 @@ function parseJianpu(input) {
 }
 parseJianpu.JianpuSyntaxError = JianpuSyntaxError;
 module.exports = parseJianpu;
-
-/***/ }),
-
-/***/ "./src/jianpu/piano-player.js":
-/*!************************************!*\
-  !*** ./src/jianpu/piano-player.js ***!
-  \************************************/
-/***/ (function(module) {
-
-"use strict";
-
-
-// Minimal browser-only piano sample player used to click-to-play jianpu
-// notes. The sample pack only recorded 4 notes per octave (C, D#, F#, A),
-// spanning the full 88-key piano range A0-C8; every other pitch is played
-// back by pitch-shifting the nearest sample.
-var SAMPLE_DIR = "./piano-samples/";
-var NOTE_SEMITONES = {
-  C: 0,
-  "C#": 1,
-  D: 2,
-  "D#": 3,
-  E: 4,
-  F: 5,
-  "F#": 6,
-  G: 7,
-  "G#": 8,
-  A: 9,
-  "A#": 10,
-  B: 11
-};
-var SAMPLE_NAMES = ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "D#1", "D#2", "D#3", "D#4", "D#5", "D#6", "D#7", "F#1", "F#2", "F#3", "F#4", "F#5", "F#6", "F#7"];
-function midiFromNoteName(name) {
-  var match = /^([A-G]#?)(-?\d+)$/.exec(name);
-  return (Number(match[2]) + 1) * 12 + NOTE_SEMITONES[match[1]];
-}
-var samples = SAMPLE_NAMES.map(function (name) {
-  return {
-    name: name,
-    fileName: name + "v10.mp3",
-    midi: midiFromNoteName(name)
-  };
-});
-var audioContext = null;
-var buffers = {}; // fileName -> decoded AudioBuffer
-var loadingPromise = null;
-function getAudioContext() {
-  if (!audioContext) {
-    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    audioContext = new AudioContextClass();
-  }
-  return audioContext;
-}
-function loadSample(sample, baseUrl) {
-  // Encode only the filename: sample names like "F#4v10.mp3" contain "#",
-  // which a relative URL would otherwise parse as a fragment separator.
-  return fetch(baseUrl + encodeURIComponent(sample.fileName)).then(function (response) {
-    if (!response.ok) throw new Error("Could not load piano sample " + sample.fileName);
-    return response.arrayBuffer();
-  }).then(function (arrayBuffer) {
-    return getAudioContext().decodeAudioData(arrayBuffer);
-  }).then(function (audioBuffer) {
-    buffers[sample.fileName] = audioBuffer;
-  });
-}
-
-/**
- * Pre-load and decode all 30 piano samples.
- * @param {string} [baseUrl] Directory containing the mp3 files.
- * @returns {Promise}
- */
-function loadSamples(baseUrl) {
-  if (!loadingPromise) {
-    baseUrl = baseUrl || SAMPLE_DIR;
-    loadingPromise = Promise.all(samples.map(function (sample) {
-      return loadSample(sample, baseUrl);
-    }));
-  }
-  return loadingPromise;
-}
-function nearestSample(midiNumber) {
-  var nearest = samples[0];
-  var nearestDistance = Infinity;
-  samples.forEach(function (sample) {
-    var distance = Math.abs(sample.midi - midiNumber);
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
-      nearest = sample;
-    }
-  });
-  return nearest;
-}
-
-/**
- * Play the sample nearest to midiNumber, pitch-shifted to the exact note.
- * @param {number} midiNumber MIDI note number (60 = middle C).
- * @param {number} [duration] Seconds to hold the note before releasing.
- * @returns {AudioBufferSourceNode|null}
- */
-function playNote(midiNumber, duration) {
-  if (typeof midiNumber !== "number" || !isFinite(midiNumber)) return null;
-  var sample = nearestSample(midiNumber);
-  var buffer = buffers[sample.fileName];
-  if (!buffer) {
-    loadSamples().then(function () {
-      playNote(midiNumber, duration);
-    });
-    return null;
-  }
-  var context = getAudioContext();
-  if (context.state === "suspended") context.resume();
-  var source = context.createBufferSource();
-  source.buffer = buffer;
-  source.playbackRate.value = Math.pow(2, (midiNumber - sample.midi) / 12);
-  var gainNode = context.createGain();
-  source.connect(gainNode);
-  gainNode.connect(context.destination);
-  var seconds = typeof duration === "number" && duration > 0 ? duration : 0.8;
-  var releaseStart = Math.max(0, seconds - 0.08);
-  var now = context.currentTime;
-  gainNode.gain.setValueAtTime(1, now);
-  gainNode.gain.setValueAtTime(1, now + releaseStart);
-  gainNode.gain.linearRampToValueAtTime(0.0001, now + seconds);
-  source.start(now);
-  source.stop(now + seconds + 0.05);
-  return source;
-}
-module.exports = {
-  samples: samples,
-  loadSamples: loadSamples,
-  playNote: playNote
-};
 
 /***/ }),
 

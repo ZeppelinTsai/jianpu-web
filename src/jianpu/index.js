@@ -3,8 +3,30 @@
 var createJianpuConverter = require("./create-jianpu-converter");
 var layoutJianpu = require("./layout-jianpu");
 var parseJianpu = require("./parse-jianpu");
-var pianoPlayer = require("./piano-player");
+var instrumentPlayer = require("./instrument-player");
 var renderJianpuSvg = require("./render-jianpu-svg");
+
+// Case-insensitive lookup from a V: voice's name= attribute to the
+// instrument sample pack used to play back its notes. Anything not listed
+// here (or a voice with no name= at all) falls back to "piano".
+var NAME_TO_INSTRUMENT = {
+	'melody': 'piano',
+	'chords': 'piano',
+	'bass': 'piano',
+	'guitar': 'guitar',
+	'violin': 'violin',
+	'harp': 'piano',
+	'flute': 'piano',
+	'pad': 'piano',
+	'glockenspiel': 'piano',
+	'pizzicato': 'violin',
+};
+
+function instrumentFromVoiceName(name) {
+	if (!name) return "piano";
+	var key = String(name).trim().toLowerCase();
+	return NAME_TO_INSTRUMENT[key] || "piano";
+}
 
 function keyLabelFromStaffKey(key) {
 	key = key || {};
@@ -64,6 +86,12 @@ function convertAbcTune(tune) {
 			return;
 		if (staff.voices.length > 1)
 			warnings.push("Only the first voice is rendered in this playground.");
+
+		// staff.title[0], when present, is voice 0's name= attribute (only
+		// populated on the music line where the voice was first declared);
+		// keep using the last-resolved instrument on subsequent lines.
+		if (staff.title && staff.title[0])
+			converter.setInstrument(instrumentFromVoiceName(staff.title[0]));
 
 		staff.voices[0].forEach(function(element) {
 			if (element.el_type === "bar") {
@@ -134,6 +162,6 @@ module.exports = {
 	createJianpuConverter: createJianpuConverter,
 	layoutJianpu: layoutJianpu,
 	parseJianpu: parseJianpu,
-	pianoPlayer: pianoPlayer,
+	instrumentPlayer: instrumentPlayer,
 	renderJianpuSvg: renderJianpuSvg,
 };

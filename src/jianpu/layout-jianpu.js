@@ -496,6 +496,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         { start: false, end: false },
         event.source.beam,
       );
+      event.instrument = event.source.instrument || "piano";
       var highDotTop =
         baselineY - options.numberTopOffset - options.octaveDotRadius;
       event.notePositions.forEach(function (note) {

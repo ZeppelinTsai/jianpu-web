@@ -29,6 +29,8 @@ var DEFAULT_OPTIONS = {
   fingeringGap: 5,
   chordFontSize: 18,
   dynamicFontSize: 13,
+  lyricFontSize: 15,
+  lyricGap: 8,
   chordNoteGap: 22,
   numberWidth: 14,
   accidentalWidth: 14,
@@ -497,6 +499,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
         event.source.beam,
       );
       event.instrument = event.source.instrument || "piano";
+      event.lyric =
+        event.source.lyric !== undefined ? event.source.lyric : null;
       var highDotTop =
         baselineY - options.numberTopOffset - options.octaveDotRadius;
       event.notePositions.forEach(function (note) {
@@ -606,6 +610,38 @@ function positionLine(line, lineIndex, contentWidth, options) {
           y: lowestVisualY + 14 + index * (options.dynamicFontSize + 2),
         });
       });
+
+      // Lyric text renders in its own row underneath everything else
+      // stacked below the note: underlines, low-octave dots, and any
+      // dynamic marking. Only compute/emit a position when there is an
+      // actual lyric slot (event.lyric !== null); a "" value (tie/skip
+      // continuation) still gets a position so render-jianpu-svg can draw
+      // an extender mark there instead of a word.
+      event.annotations.lyric = null;
+      if (event.lyric !== null) {
+        var lyricBaseY =
+          underlineStartY +
+          Math.max(0, event.durationMarks.underlines - 1) *
+            options.underlineSpacing;
+        event.notePositions.forEach(function (note) {
+          note.octaveDotPositions.forEach(function (dot) {
+            lyricBaseY = Math.max(lyricBaseY, dot.cy + dot.r);
+          });
+        });
+        if (event.annotations.dynamics.length) {
+          var lastDynamic =
+            event.annotations.dynamics[event.annotations.dynamics.length - 1];
+          lyricBaseY = Math.max(
+            lyricBaseY,
+            lastDynamic.y + options.dynamicFontSize / 2,
+          );
+        }
+        event.annotations.lyric = {
+          text: event.lyric,
+          x: eventX + event.noteColumnWidth / 2,
+          y: lyricBaseY + options.lyricGap + options.lyricFontSize,
+        };
+      }
 
       delete event.source;
       eventX += event.width + eventGap;
@@ -911,6 +947,7 @@ function layoutJianpu(elements, options, measureText) {
       fingeringFontSize: options.fingeringFontSize,
       chordFontSize: options.chordFontSize,
       dynamicFontSize: options.dynamicFontSize,
+      lyricFontSize: options.lyricFontSize,
       pageNumberFontSize: options.pageNumberFontSize,
     },
     lines: lines,

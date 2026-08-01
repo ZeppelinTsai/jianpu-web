@@ -2785,7 +2785,14 @@ function createJianpuConverter(initialKey) {
     var event = {
       notes: note.pitches.map(convertPitch),
       durationMarks: durationMarks(representation),
-      instrument: context.instrument
+      instrument: context.instrument,
+      // event.lyric convention: null means the note has no lyric slot at
+      // all (no `w:` line reached it, or no `w:` line exists); "" means a
+      // continuation slot (from a `_`/`*` skip marker in the `w:` line, or
+      // a `w:` line that ran out of real words) that should render as an
+      // extender mark rather than nothing; a non-empty string is a real
+      // syllable to render.
+      lyric: note.lyric && note.lyric[0] ? note.lyric[0].syllable : null
     };
     if (note.chord) {
       event.chordSymbols = note.chord.filter(function (chord) {
@@ -2907,12 +2914,85 @@ function findFirstStaff(tune) {
   }
   return null;
 }
-function convertAbcTune(tune) {
+
+// abcjs's own w: line parser (addWords in src/parse/abc_parse.js) consumes
+// syllables against note elements as it walks the tune, but it does this
+// silently: if a `w:` line has too FEW words it just stops (later notes get
+// no `.lyric` at all), and if it has too MANY it drops the leftovers with no
+// trace. Neither case leaves enough of a fingerprint on the parsed tune to
+// detect "too many syllables" after the fact. So for validation we
+// independently re-tokenize the raw `w:` line text ourselves. Nothing on the
+// parsed tune retains that raw text, so we re-scan the original ABC input.
+//
+// Returns an array parallel to tune.lines (one entry per music line that
+// actually reaches the tune, i.e. lines with a .staff), where each entry is
+// either null (no `w:` line followed that music line) or the raw text after
+// the "w:" prefix.
+function extractLyricLines(rawAbc) {
+  var lines = String(rawAbc).replace(/\r\n?/g, "\n").split("\n");
+  var result = [];
+  var i = 0;
+  while (i < lines.length) {
+    var line = lines[i].replace(/\s+$/, "");
+    if (line.length === 0 || line[0] === "%") {
+      i++;
+      continue;
+    }
+    var fieldMatch = /^[A-Za-z]:/.exec(line);
+    if (fieldMatch) {
+      // A header/info field line (X:, T:, K:, w:, V:, ...). Standalone
+      // `w:` lines not immediately following a recognized music line are
+      // not associated with anything; skip them defensively.
+      i++;
+      continue;
+    }
+    // Strip quoted chord/annotation strings, inline fields like [K:C], and
+    // !decoration! marks to see if anything musical (notes/bars) is left.
+    var stripped = line.replace(/"[^"]*"/g, "").replace(/\[[A-Za-z]:[^\]]*\]/g, "").replace(/![^!]*!/g, "");
+    if (stripped.trim().length === 0) {
+      // No musical content on this line (e.g. a lone "[V:1]" line).
+      i++;
+      continue;
+    }
+    // This is a music line.
+    var lyricText = null;
+    i++;
+    if (i < lines.length) {
+      var next = lines[i].replace(/\s+$/, "");
+      if (/^w:/.test(next)) {
+        lyricText = next.substring(2);
+        i++;
+      }
+    }
+    result.push(lyricText);
+  }
+  return result;
+}
+
+// Splits the raw text of one `w:` line into per-measure syllable-slot
+// counts. Real words, and the `_`/`*` skip markers, each count as filling
+// one slot; `|` divides measures, matching abcjs's own bar-realignment
+// syntax for `w:` lines.
+function countLyricSlotsPerMeasure(rawWordsLine) {
+  if (rawWordsLine === null || rawWordsLine === undefined) return null;
+  return rawWordsLine.split("|").map(function (segment) {
+    var tokens = segment.trim().split(/\s+/).filter(function (token) {
+      return token.length > 0;
+    });
+    return tokens.length;
+  });
+}
+function convertAbcTune(tune, rawAbc) {
   var firstStaff = findFirstStaff(tune);
   if (!firstStaff) throw new Error("The ABC tune contains no staff.");
   var converter = createJianpuConverter(firstStaff.key);
   var elements = [];
   var warnings = tune.warnings ? tune.warnings.slice() : [];
+  var lyricLinesByMusicLine = rawAbc ? extractLyricLines(rawAbc) : [];
+  var musicLineIndex = 0;
+  // Measure numbers run continuously across the whole tune (matching how
+  // layout-jianpu numbers measures), not per music line.
+  var measureNumber = 0;
   tune.lines.forEach(function (line) {
     if (!line.staff || !line.staff[0]) return;
     var staff = line.staff[0];
@@ -2923,19 +3003,43 @@ function convertAbcTune(tune) {
     // populated on the music line where the voice was first declared);
     // keep using the last-resolved instrument on subsequent lines.
     if (staff.title && staff.title[0]) converter.setInstrument(instrumentFromVoiceName(staff.title[0]));
+    var lyricSlotsPerMeasure = countLyricSlotsPerMeasure(lyricLinesByMusicLine[musicLineIndex]);
+    musicLineIndex++;
+    var lyricMeasureIndex = 0;
+    var playableNoteCount = 0;
     staff.voices[0].forEach(function (element) {
       if (element.el_type === "bar") {
+        measureNumber++;
+        if (lyricSlotsPerMeasure) {
+          var expectedSlots = lyricSlotsPerMeasure[lyricMeasureIndex];
+          if (expectedSlots !== undefined && expectedSlots !== playableNoteCount) {
+            warnings.push("Lyric syllable count doesn't match note count in measure " + measureNumber + ".");
+          }
+          lyricMeasureIndex++;
+        }
+        playableNoteCount = 0;
         converter.resetBar();
         elements.push({
           type: "bar",
           barType: element.type
         });
       } else if (element.el_type === "note") {
+        if (element.rest === undefined) playableNoteCount++;
         converter.convertNote(element).forEach(function (event) {
           elements.push(event);
         });
       }
     });
+    // A trailing partial measure with no closing bar still needs to be
+    // checked, but keep it best-effort: don't let it throw or otherwise
+    // disrupt the rest of the tune.
+    if (lyricSlotsPerMeasure && playableNoteCount > 0) {
+      measureNumber++;
+      var expectedTrailingSlots = lyricSlotsPerMeasure[lyricMeasureIndex];
+      if (expectedTrailingSlots !== undefined && expectedTrailingSlots !== playableNoteCount) {
+        warnings.push("Lyric syllable count doesn't match note count in measure " + measureNumber + ".");
+      }
+    }
     elements.push({
       type: "line_break"
     });
@@ -2972,7 +3076,7 @@ function fromAbc(abc, options, parseOnly) {
   if (typeof parseOnly !== "function") throw new TypeError("fromAbc requires ABCJS.parseOnly as its third argument.");
   var tunes = parseOnly(abc);
   if (!tunes || !tunes.length) throw new Error("ABCJS.parseOnly returned no tunes.");
-  var converted = convertAbcTune(tunes[0]);
+  var converted = convertAbcTune(tunes[0], abc);
   return finish(converted.elements, converted.header, converted.warnings, options);
 }
 function fromText(input, options) {
@@ -3325,6 +3429,8 @@ var DEFAULT_OPTIONS = {
   fingeringGap: 5,
   chordFontSize: 18,
   dynamicFontSize: 13,
+  lyricFontSize: 15,
+  lyricGap: 8,
   chordNoteGap: 22,
   numberWidth: 14,
   accidentalWidth: 14,
@@ -3683,6 +3789,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         end: false
       }, event.source.beam);
       event.instrument = event.source.instrument || "piano";
+      event.lyric = event.source.lyric !== undefined ? event.source.lyric : null;
       var highDotTop = baselineY - options.numberTopOffset - options.octaveDotRadius;
       event.notePositions.forEach(function (note) {
         note.octaveDotPositions.forEach(function (dot) {
@@ -3759,6 +3866,31 @@ function positionLine(line, lineIndex, contentWidth, options) {
           y: lowestVisualY + 14 + index * (options.dynamicFontSize + 2)
         });
       });
+
+      // Lyric text renders in its own row underneath everything else
+      // stacked below the note: underlines, low-octave dots, and any
+      // dynamic marking. Only compute/emit a position when there is an
+      // actual lyric slot (event.lyric !== null); a "" value (tie/skip
+      // continuation) still gets a position so render-jianpu-svg can draw
+      // an extender mark there instead of a word.
+      event.annotations.lyric = null;
+      if (event.lyric !== null) {
+        var lyricBaseY = underlineStartY + Math.max(0, event.durationMarks.underlines - 1) * options.underlineSpacing;
+        event.notePositions.forEach(function (note) {
+          note.octaveDotPositions.forEach(function (dot) {
+            lyricBaseY = Math.max(lyricBaseY, dot.cy + dot.r);
+          });
+        });
+        if (event.annotations.dynamics.length) {
+          var lastDynamic = event.annotations.dynamics[event.annotations.dynamics.length - 1];
+          lyricBaseY = Math.max(lyricBaseY, lastDynamic.y + options.dynamicFontSize / 2);
+        }
+        event.annotations.lyric = {
+          text: event.lyric,
+          x: eventX + event.noteColumnWidth / 2,
+          y: lyricBaseY + options.lyricGap + options.lyricFontSize
+        };
+      }
       delete event.source;
       eventX += event.width + eventGap;
     });
@@ -3993,6 +4125,7 @@ function layoutJianpu(elements, options, measureText) {
       fingeringFontSize: options.fingeringFontSize,
       chordFontSize: options.chordFontSize,
       dynamicFontSize: options.dynamicFontSize,
+      lyricFontSize: options.lyricFontSize,
       pageNumberFontSize: options.pageNumberFontSize
     },
     lines: lines,
@@ -4272,7 +4405,7 @@ function renderJianpuSvg(layout, options) {
   var output = [];
   output.push('<?xml version="1.0" encoding="UTF-8"?>');
   output.push('<svg xmlns="http://www.w3.org/2000/svg" class="' + escapeXml(className) + '" width="' + number(layout.width) + '" height="' + number(layout.height) + '" viewBox="0 0 ' + number(layout.width) + " " + number(layout.height) + '" role="img" aria-label="' + escapeXml(layout.header.title || "Jianpu notation") + '">');
-  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," + ".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number{" + "font-family:" + notationFontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px;font-weight:700}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600;" + "font-family:" + titleFontFamily + "}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-meter{text-anchor:middle;font-size:" + number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) + "px;font-weight:400}" + ".jianpu-composer{text-anchor:end;font-size:" + number(layout.style.composerFontSize) + "px;font-style:italic}" + ".jianpu-chord{text-anchor:middle;font-size:" + number(layout.style.chordFontSize) + "px;font-weight:400}" + ".jianpu-dynamic{text-anchor:middle;font-size:" + number(layout.style.dynamicFontSize) + "px;font-style:italic}" + ".jianpu-measure-number{font-size:" + number(layout.style.measureNumberFontSize) + "px;font-weight:400}" + ".jianpu-page-number{text-anchor:end;font-size:" + number(layout.style.pageNumberFontSize || 13) + "px;font-weight:400}" + ".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" + "font-size:" + number(layout.style.fingeringFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" + ".jianpu-note{cursor:pointer}" + ".jianpu-note:hover .jianpu-number{fill:#1a73e8}" + ".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + ".jianpu-meter-line{stroke:currentColor;fill:none}" + "</style>");
+  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," + ".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number," + ".jianpu-lyric{" + "font-family:" + notationFontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px;font-weight:700}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600;" + "font-family:" + titleFontFamily + "}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-meter{text-anchor:middle;font-size:" + number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) + "px;font-weight:400}" + ".jianpu-composer{text-anchor:end;font-size:" + number(layout.style.composerFontSize) + "px;font-style:italic}" + ".jianpu-chord{text-anchor:middle;font-size:" + number(layout.style.chordFontSize) + "px;font-weight:400}" + ".jianpu-dynamic{text-anchor:middle;font-size:" + number(layout.style.dynamicFontSize) + "px;font-style:italic}" + ".jianpu-lyric{text-anchor:middle;font-size:" + number(layout.style.lyricFontSize) + "px;font-weight:400}" + ".jianpu-lyric-extend{opacity:.6}" + ".jianpu-measure-number{font-size:" + number(layout.style.measureNumberFontSize) + "px;font-weight:400}" + ".jianpu-page-number{text-anchor:end;font-size:" + number(layout.style.pageNumberFontSize || 13) + "px;font-weight:400}" + ".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" + "font-size:" + number(layout.style.fingeringFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" + ".jianpu-note{cursor:pointer}" + ".jianpu-note:hover .jianpu-number{fill:#1a73e8}" + ".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + ".jianpu-meter-line{stroke:currentColor;fill:none}" + "</style>");
   if (layout.header.title) {
     output.push('<text class="jianpu-title" x="' + number(layout.header.titlePosition.x) + '" y="' + number(layout.header.titlePosition.y) + '">' + escapeXml(layout.header.title) + "</text>");
   }
@@ -4332,6 +4465,16 @@ function renderJianpuSvg(layout, options) {
         event.durationLayout.dots.forEach(function (dot) {
           output.push(circleSvg(dot, "jianpu-duration-dot"));
         });
+        if (event.annotations.lyric) {
+          var isExtender = event.annotations.lyric.text === "";
+          var lyricClass = "jianpu-lyric" + (isExtender ? " jianpu-lyric-extend" : "");
+          // An empty syllable means the `w:` line marked this note as a
+          // continuation (tie/skip) rather than a new word; render a short
+          // dash instead of leaving the row blank, so it reads as
+          // "intentionally no new syllable" rather than missing data.
+          var lyricText = isExtender ? "–" : event.annotations.lyric.text;
+          output.push('<text class="' + lyricClass + '" x="' + number(event.annotations.lyric.x) + '" y="' + number(event.annotations.lyric.y) + '">' + escapeXml(lyricText) + "</text>");
+        }
         output.push("</g>");
       });
       measure.beamLines.forEach(function (line) {

@@ -51,14 +51,14 @@ var staff = tune.lines[0].staff[0];
 var converted = convertVoice(staff);
 
 var expected = [
-	{ notes: [{ number: 1, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano" },
-	{ notes: [{ number: 2, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano" },
-	{ notes: [{ number: 3, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano" },
-	{ notes: [{ number: 4, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano" },
+	{ notes: [{ number: 1, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano", lyric: null },
+	{ notes: [{ number: 2, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano", lyric: null },
+	{ notes: [{ number: 3, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano", lyric: null },
+	{ notes: [{ number: 4, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano", lyric: null },
 	{ type: "bar", barType: "bar_thin" },
-	{ notes: [{ number: 5, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 1, underlines: 0, dots: 0 }, instrument: "piano" },
-	{ notes: [{ number: 6, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 1, dots: 0 }, instrument: "piano", beam: { start: true, end: false } },
-	{ notes: [{ number: 7, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 1, dots: 0 }, instrument: "piano", beam: { start: false, end: true } },
+	{ notes: [{ number: 5, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 1, underlines: 0, dots: 0 }, instrument: "piano", lyric: null },
+	{ notes: [{ number: 6, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 1, dots: 0 }, instrument: "piano", lyric: null, beam: { start: true, end: false } },
+	{ notes: [{ number: 7, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 1, dots: 0 }, instrument: "piano", lyric: null, beam: { start: false, end: true } },
 	{ notes: [{ number: 0, octaveDots: 0, accidentalMark: null }], durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 }, instrument: "piano" },
 	{ type: "bar", barType: "bar_thin" },
 	{
@@ -69,8 +69,9 @@ var expected = [
 		],
 		durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
 		instrument: "piano",
+		lyric: null,
 	},
-	{ notes: [{ number: 4, octaveDots: 0, accidentalMark: "sharp" }], durationMarks: { extensionDashes: 1, underlines: 0, dots: 0 }, instrument: "piano" },
+	{ notes: [{ number: 4, octaveDots: 0, accidentalMark: "sharp" }], durationMarks: { extensionDashes: 1, underlines: 0, dots: 0 }, instrument: "piano", lyric: null },
 	{ type: "bar", barType: "bar_thin_thick" },
 ];
 
@@ -92,6 +93,31 @@ assert.deepStrictEqual(edgeConverter.convertNote({
 	notes: [{ number: 6, octaveDots: 0, accidentalMark: "dblsharp" }],
 	durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
 	instrument: "piano",
+	lyric: null,
+}]);
+
+assert.deepStrictEqual(edgeConverter.convertNote({
+	el_type: "note",
+	duration: 0.25,
+	pitches: [{ pitch: 5, name: "A", accidental: "dblsharp" }],
+	lyric: [{ syllable: "la", divider: " " }],
+}), [{
+	notes: [{ number: 6, octaveDots: 0, accidentalMark: "dblsharp" }],
+	durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
+	instrument: "piano",
+	lyric: "la",
+}]);
+
+assert.deepStrictEqual(edgeConverter.convertNote({
+	el_type: "note",
+	duration: 0.25,
+	pitches: [{ pitch: 5, name: "A", accidental: "dblsharp" }],
+	lyric: [{ syllable: "", divider: " " }],
+}), [{
+	notes: [{ number: 6, octaveDots: 0, accidentalMark: "dblsharp" }],
+	durationMarks: { extensionDashes: 0, underlines: 0, dots: 0 },
+	instrument: "piano",
+	lyric: "",
 }]);
 assert.strictEqual(edgeConverter.context.measureAccidentals.get("A:0"), "dblsharp");
 

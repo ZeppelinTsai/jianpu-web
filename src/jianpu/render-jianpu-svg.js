@@ -57,7 +57,8 @@ function renderJianpuSvg(layout, options) {
 		".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" +
 		"font-family:" + fontFamily + ";fill:currentColor}" +
 		".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," +
-		".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number{" +
+		".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number," +
+		".jianpu-lyric{" +
 		"font-family:" + notationFontFamily + ";fill:currentColor}" +
 		".jianpu-number{text-anchor:middle;font-size:" +
 		number(layout.style.numberFontSize) + "px;font-weight:700}" +
@@ -76,6 +77,9 @@ function renderJianpuSvg(layout, options) {
 		number(layout.style.chordFontSize) + "px;font-weight:400}" +
 		".jianpu-dynamic{text-anchor:middle;font-size:" +
 		number(layout.style.dynamicFontSize) + "px;font-style:italic}" +
+		".jianpu-lyric{text-anchor:middle;font-size:" +
+		number(layout.style.lyricFontSize) + "px;font-weight:400}" +
+		".jianpu-lyric-extend{opacity:.6}" +
 		".jianpu-measure-number{font-size:" +
 		number(layout.style.measureNumberFontSize) + "px;font-weight:400}" +
 		".jianpu-page-number{text-anchor:end;font-size:" +
@@ -198,6 +202,20 @@ function renderJianpuSvg(layout, options) {
 				event.durationLayout.dots.forEach(function(dot) {
 					output.push(circleSvg(dot, "jianpu-duration-dot"));
 				});
+				if (event.annotations.lyric) {
+					var isExtender = event.annotations.lyric.text === "";
+					var lyricClass = "jianpu-lyric" +
+						(isExtender ? " jianpu-lyric-extend" : "");
+					// An empty syllable means the `w:` line marked this note as a
+					// continuation (tie/skip) rather than a new word; render a short
+					// dash instead of leaving the row blank, so it reads as
+					// "intentionally no new syllable" rather than missing data.
+					var lyricText = isExtender ? "–" : event.annotations.lyric.text;
+					output.push('<text class="' + lyricClass + '" x="' +
+						number(event.annotations.lyric.x) + '" y="' +
+						number(event.annotations.lyric.y) + '">' +
+						escapeXml(lyricText) + "</text>");
+				}
 				output.push("</g>");
 			});
 			measure.beamLines.forEach(function(line) {

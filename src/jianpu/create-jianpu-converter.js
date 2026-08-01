@@ -263,6 +263,13 @@ function createJianpuConverter(initialKey) {
       notes: note.pitches.map(convertPitch),
       durationMarks: durationMarks(representation),
       instrument: context.instrument,
+      // event.lyric convention: null means the note has no lyric slot at
+      // all (no `w:` line reached it, or no `w:` line exists); "" means a
+      // continuation slot (from a `_`/`*` skip marker in the `w:` line, or
+      // a `w:` line that ran out of real words) that should render as an
+      // extender mark rather than nothing; a non-empty string is a real
+      // syllable to render.
+      lyric: note.lyric && note.lyric[0] ? note.lyric[0].syllable : null,
     };
     if (note.chord) {
       event.chordSymbols = note.chord

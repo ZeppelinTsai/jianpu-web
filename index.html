@@ -690,10 +690,87 @@
                 </li>
                 <li>
                   聲部（<code>V:</code>）的 <code>name=</code>
-                  決定播放音色：<code>Melody</code>／<code>Chords</code
-                  >／<code>Bass</code> 用鋼琴，<code>Guitar</code>
-                  用吉他，<code>Violin</code>／<code>Pizzicato</code>
-                  用小提琴，其餘名稱目前一律以鋼琴代打。
+                  決定播放音色（比對時不分大小寫），對照如下，未列出的名稱一律以鋼琴代打：
+                  <table class="table table-sm small mt-2 mb-0">
+                    <tbody>
+                      <tr>
+                        <td>
+                          <code>Melody</code>／<code>Chords</code>／<code
+                            >Pad</code
+                          >／<code>Glockenspiel</code>
+                        </td>
+                        <td>鋼琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>Bass</code></td>
+                        <td>電貝斯</td>
+                      </tr>
+                      <tr>
+                        <td><code>Guitar</code></td>
+                        <td>木吉他</td>
+                      </tr>
+                      <tr>
+                        <td><code>Violin</code>／<code>Pizzicato</code></td>
+                        <td>小提琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>Harp</code></td>
+                        <td>豎琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>Flute</code></td>
+                        <td>長笛</td>
+                      </tr>
+                      <tr>
+                        <td><code>Bassoon</code></td>
+                        <td>低音管</td>
+                      </tr>
+                      <tr>
+                        <td><code>Cello</code></td>
+                        <td>大提琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>Clarinet</code></td>
+                        <td>單簧管</td>
+                      </tr>
+                      <tr>
+                        <td><code>Contrabass</code></td>
+                        <td>倍低音提琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>French Horn</code></td>
+                        <td>法國號</td>
+                      </tr>
+                      <tr>
+                        <td><code>Saxophone</code></td>
+                        <td>薩克斯風</td>
+                      </tr>
+                      <tr>
+                        <td><code>Trombone</code></td>
+                        <td>長號</td>
+                      </tr>
+                      <tr>
+                        <td><code>Trumpet</code></td>
+                        <td>小號</td>
+                      </tr>
+                      <tr>
+                        <td><code>Tuba</code></td>
+                        <td>低音號</td>
+                      </tr>
+                      <tr>
+                        <td><code>Xylophone</code></td>
+                        <td>木琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>Organ</code></td>
+                        <td>管風琴</td>
+                      </tr>
+                      <tr>
+                        <td><code>Harmonium</code></td>
+                        <td>簧風琴</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </li>
               </ul>
               <h6 class="fw-bold">簡譜文字模式</h6>
@@ -763,10 +840,88 @@
                 </li>
                 <li>
                   A voice's (<code>V:</code>) <code>name=</code> picks its
-                  playback sound: <code>Melody</code>/<code>Chords</code>/
-                  <code>Bass</code> use piano, <code>Guitar</code> uses
-                  guitar, <code>Violin</code>/<code>Pizzicato</code> use
-                  violin, and any other name currently falls back to piano.
+                  playback sound (matched case-insensitively); any name not
+                  listed here falls back to piano:
+                  <table class="table table-sm small mt-2 mb-0">
+                    <tbody>
+                      <tr>
+                        <td>
+                          <code>Melody</code>/<code>Chords</code>/<code
+                            >Pad</code
+                          >/<code>Glockenspiel</code>
+                        </td>
+                        <td>Piano</td>
+                      </tr>
+                      <tr>
+                        <td><code>Bass</code></td>
+                        <td>Electric bass</td>
+                      </tr>
+                      <tr>
+                        <td><code>Guitar</code></td>
+                        <td>Acoustic guitar</td>
+                      </tr>
+                      <tr>
+                        <td><code>Violin</code>/<code>Pizzicato</code></td>
+                        <td>Violin</td>
+                      </tr>
+                      <tr>
+                        <td><code>Harp</code></td>
+                        <td>Harp</td>
+                      </tr>
+                      <tr>
+                        <td><code>Flute</code></td>
+                        <td>Flute</td>
+                      </tr>
+                      <tr>
+                        <td><code>Bassoon</code></td>
+                        <td>Bassoon</td>
+                      </tr>
+                      <tr>
+                        <td><code>Cello</code></td>
+                        <td>Cello</td>
+                      </tr>
+                      <tr>
+                        <td><code>Clarinet</code></td>
+                        <td>Clarinet</td>
+                      </tr>
+                      <tr>
+                        <td><code>Contrabass</code></td>
+                        <td>Contrabass</td>
+                      </tr>
+                      <tr>
+                        <td><code>French Horn</code></td>
+                        <td>French horn</td>
+                      </tr>
+                      <tr>
+                        <td><code>Saxophone</code></td>
+                        <td>Saxophone</td>
+                      </tr>
+                      <tr>
+                        <td><code>Trombone</code></td>
+                        <td>Trombone</td>
+                      </tr>
+                      <tr>
+                        <td><code>Trumpet</code></td>
+                        <td>Trumpet</td>
+                      </tr>
+                      <tr>
+                        <td><code>Tuba</code></td>
+                        <td>Tuba</td>
+                      </tr>
+                      <tr>
+                        <td><code>Xylophone</code></td>
+                        <td>Xylophone</td>
+                      </tr>
+                      <tr>
+                        <td><code>Organ</code></td>
+                        <td>Organ</td>
+                      </tr>
+                      <tr>
+                        <td><code>Harmonium</code></td>
+                        <td>Harmonium</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </li>
               </ul>
               <h6 class="fw-bold">Jianpu Text Mode</h6>
@@ -1091,6 +1246,19 @@
           playbackSpeedInput.value = Math.round(bpm);
         }
 
+        // Preload whichever instruments the current score's voices actually
+        // resolved to, so the first note of a non-piano instrument doesn't
+        // stall on a fetch the moment playback (or click-to-preview) hits it.
+        function preloadInstrumentsForLayout(layout) {
+          var seen = {};
+          collectPlayableEvents(layout).forEach(function (event) {
+            var instrument = event.instrument || "piano";
+            if (seen[instrument]) return;
+            seen[instrument] = true;
+            ABCJS.jianpu.instrumentPlayer.loadSamples(instrument);
+          });
+        }
+
         function render() {
           try {
             var options = { staffWidth: 800 };
@@ -1103,6 +1271,7 @@
             applyTempoFromHeader(result.layout && result.layout.header);
             showMessages(result.warnings);
             lastLayout = result.layout;
+            if (lastLayout) preloadInstrumentsForLayout(lastLayout);
           } catch (error) {
             preview.innerHTML = "";
             printTitle = playgroundTitle;
@@ -1409,12 +1578,10 @@
         // against its own live AudioContext, so this re-fetches/decodes the
         // same sample files rather than requiring a library change).
 
-        var INSTRUMENT_SAMPLE_BASE_URLS = {
-          piano: "src/jianpu/piano-samples/",
-          guitar: "src/jianpu/guitar-acoustic-samples/",
-          violin: "src/jianpu/violin-samples/",
-        };
-        var wavSampleBuffersPromise = null;
+        // Loaded lazily per-instrument (keyed by instrument name) so a
+        // piece that only uses one or two instruments doesn't have to fetch
+        // every sample pack in the library.
+        var wavSampleBufferPromisesByInstrument = {};
 
         function nearestSample(instrument, midiNumber) {
           var samples =
@@ -1432,44 +1599,56 @@
           return nearest;
         }
 
-        function loadWavSampleBuffers() {
-          if (wavSampleBuffersPromise) return wavSampleBuffersPromise;
+        function loadWavSampleBuffers(instruments) {
           var AudioContextClass = window.AudioContext || window.webkitAudioContext;
           var decodeContext = new AudioContextClass();
-          var instruments = Object.keys(INSTRUMENT_SAMPLE_BASE_URLS);
-          wavSampleBuffersPromise = Promise.all(
+          return Promise.all(
             instruments.map(function (instrument) {
-              var baseUrl = INSTRUMENT_SAMPLE_BASE_URLS[instrument];
-              return Promise.all(
-                ABCJS.jianpu.instrumentPlayer.samples[instrument].map(function (sample) {
-                  return fetch(baseUrl + encodeURIComponent(sample.fileName))
-                    .then(function (response) {
-                      return response.arrayBuffer();
-                    })
-                    .then(function (arrayBuffer) {
-                      return decodeContext.decodeAudioData(arrayBuffer);
-                    })
-                    .then(function (audioBuffer) {
-                      return { fileName: sample.fileName, buffer: audioBuffer };
-                    });
-                }),
-              ).then(function (results) {
-                var map = {};
-                results.forEach(function (result) {
-                  map[result.fileName] = result.buffer;
+              if (!wavSampleBufferPromisesByInstrument[instrument]) {
+                var instrumentSamples =
+                  ABCJS.jianpu.instrumentPlayer.samples[instrument] ||
+                  ABCJS.jianpu.instrumentPlayer.samples.piano;
+                var baseUrl =
+                  ABCJS.jianpu.instrumentPlayer.sampleDirs[instrument] ||
+                  ABCJS.jianpu.instrumentPlayer.sampleDirs.piano;
+                wavSampleBufferPromisesByInstrument[instrument] = Promise.all(
+                  instrumentSamples.map(function (sample) {
+                    return fetch(baseUrl + encodeURIComponent(sample.fileName))
+                      .then(function (response) {
+                        return response.arrayBuffer();
+                      })
+                      .then(function (arrayBuffer) {
+                        return decodeContext.decodeAudioData(arrayBuffer);
+                      })
+                      .then(function (audioBuffer) {
+                        return { fileName: sample.fileName, buffer: audioBuffer };
+                      });
+                  }),
+                ).then(function (results) {
+                  var map = {};
+                  results.forEach(function (result) {
+                    map[result.fileName] = result.buffer;
+                  });
+                  return map;
                 });
-                return { instrument: instrument, map: map };
-              });
+              }
+              return wavSampleBufferPromisesByInstrument[instrument].then(
+                function (map) {
+                  return { instrument: instrument, map: map };
+                },
+              );
             }),
-          ).then(function (results) {
-            var byInstrument = {};
-            results.forEach(function (result) {
-              byInstrument[result.instrument] = result.map;
+          )
+            .then(function (results) {
+              var byInstrument = {};
+              results.forEach(function (result) {
+                byInstrument[result.instrument] = result.map;
+              });
+              return byInstrument;
+            })
+            .finally(function () {
+              decodeContext.close();
             });
-            decodeContext.close();
-            return byInstrument;
-          });
-          return wavSampleBuffersPromise;
         }
 
         function scheduleNoteOffline(offlineCtx, buffersByInstrument, instrument, midiNumber, startSeconds, durationSeconds) {
@@ -1555,8 +1734,13 @@
           accumulate(plan.chordSchedule);
           totalSeconds += 1;
 
+          var neededInstruments = { piano: true }; // chord accompaniment always uses piano
+          plan.audioSchedule.forEach(function (item) {
+            neededInstruments[item.instrument || "piano"] = true;
+          });
+
           setWavExportBusy(true);
-          loadWavSampleBuffers()
+          loadWavSampleBuffers(Object.keys(neededInstruments))
             .then(function (buffers) {
               var sampleRate = 44100;
               var offlineCtx = new OfflineAudioContext(
@@ -1749,12 +1933,7 @@
           document.title = playgroundTitle;
         });
 
-        Object.keys(INSTRUMENT_SAMPLE_BASE_URLS).forEach(function (instrument) {
-          ABCJS.jianpu.instrumentPlayer.loadSamples(
-            instrument,
-            INSTRUMENT_SAMPLE_BASE_URLS[instrument],
-          );
-        });
+        ABCJS.jianpu.instrumentPlayer.loadSamples("piano");
 
         document.querySelectorAll(".lang-btn").forEach(function (btn) {
           btn.addEventListener("click", function () {

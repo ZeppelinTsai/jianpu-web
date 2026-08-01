@@ -8,18 +8,33 @@ var renderJianpuSvg = require("./render-jianpu-svg");
 
 // Case-insensitive lookup from a V: voice's name= attribute to the
 // instrument sample pack used to play back its notes. Anything not listed
-// here (or a voice with no name= at all) falls back to "piano".
+// here (or a voice with no name= at all) falls back to "piano". "guitar"
+// deliberately stays pointed at the acoustic pack for now — guitar-nylon
+// and guitar-electric exist on disk but aren't mapped to a name= yet, to
+// avoid users needing to know which of three guitar tones they'd get.
 var NAME_TO_INSTRUMENT = {
 	'melody': 'piano',
 	'chords': 'piano',
-	'bass': 'piano',
+	'bass': 'bass-electric',
 	'guitar': 'guitar',
 	'violin': 'violin',
-	'harp': 'piano',
-	'flute': 'piano',
+	'harp': 'harp',
+	'flute': 'flute',
 	'pad': 'piano',
 	'glockenspiel': 'piano',
 	'pizzicato': 'violin',
+	'bassoon': 'bassoon',
+	'cello': 'cello',
+	'clarinet': 'clarinet',
+	'contrabass': 'contrabass',
+	'french horn': 'french-horn',
+	'saxophone': 'saxophone',
+	'trombone': 'trombone',
+	'trumpet': 'trumpet',
+	'tuba': 'tuba',
+	'xylophone': 'xylophone',
+	'organ': 'organ',
+	'harmonium': 'harmonium',
 };
 
 function instrumentFromVoiceName(name) {

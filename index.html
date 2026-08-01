@@ -176,6 +176,7 @@
         grid-template-columns: minmax(300px, 0.8fr) minmax(420px, 1.2fr);
         gap: 14px;
         min-height: calc(100vh - 90px);
+        align-content: start;
       }
       .panel {
         min-width: 0;
@@ -214,6 +215,21 @@
       }
       .panel-body.collapsed {
         display: none;
+      }
+      /* The panel collapse toggle is a small-screen affordance only; on
+         wider screens the header is a plain (non-interactive) label and
+         the body always stays visible, matching the toolbar's "More
+         Options" toggle which is likewise hidden above that breakpoint. */
+      @media (min-width: 601px) {
+        .panel-body.collapsed {
+          display: block;
+        }
+        .panel-toggle {
+          cursor: default;
+        }
+        .panel-toggle .chevron {
+          display: none;
+        }
       }
       textarea {
         display: block;

@@ -63,6 +63,30 @@
         align-items: center;
         gap: 8px;
       }
+      .toolbar .play-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-left: auto;
+        position: relative;
+      }
+      .toolbar .play-toolbar.collapsed {
+        display: none;
+      }
+      .toolbar .collapse-toggle {
+        display: none;
+        border: 1px solid #d0d7de;
+        background: #fff;
+        color: #334155;
+        min-width: 40px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 2;
+      }
       .toolbar .play-option {
         display: inline-flex;
         align-items: center;
@@ -164,21 +188,27 @@
       #preview .jianpu-underline,
       #preview .jianpu-extension,
       #preview .jianpu-duration-dot,
-      #preview .jianpu-octave-dot {
+      #preview .jianpu-octave-dot,
+      #preview .jianpu-tie,
+      #preview .jianpu-stem,
+      #preview .jianpu-notehead {
         transition:
           fill 0.1s ease,
           stroke 0.1s ease;
       }
       #preview .jianpu-event.jianpu-playing .jianpu-number,
-      #preview .jianpu-event.jianpu-playing .jianpu-accidental {
-        fill: #1a73e8;
+      #preview .jianpu-event.jianpu-playing .jianpu-accidental,
+      #preview .jianpu-event.jianpu-playing .jianpu-notehead {
+        fill: #dc2626;
       }
       #preview .jianpu-event.jianpu-playing .jianpu-underline,
       #preview .jianpu-event.jianpu-playing .jianpu-extension,
       #preview .jianpu-event.jianpu-playing .jianpu-duration-dot,
-      #preview .jianpu-event.jianpu-playing .jianpu-octave-dot {
-        stroke: #1a73e8;
-        fill: #1a73e8;
+      #preview .jianpu-event.jianpu-playing .jianpu-octave-dot,
+      #preview .jianpu-event.jianpu-playing .jianpu-tie,
+      #preview .jianpu-event.jianpu-playing .jianpu-stem {
+        stroke: #dc2626;
+        fill: #dc2626;
       }
       #messages {
         margin: 10px 0 0;
@@ -236,6 +266,16 @@
         }
         .toolbar .control-stack:last-of-type {
           flex-wrap: nowrap;
+        }
+        .toolbar .play-toolbar {
+          width: 100%;
+          margin-left: 0;
+          padding-right: 48px;
+        }
+        .toolbar .collapse-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .toolbar .play-controls {
           margin-left: 0;
@@ -373,29 +413,40 @@
           <span class="play-label">播放</span>
         </button>
       </div>
-      <div class="play-controls">
-        <label class="play-option" for="repeat-playback">
-          <input
-            id="repeat-playback"
-            class="form-check-input"
-            type="checkbox"
-          />
-          <span>重複播放</span>
-        </label>
-        <label class="play-option" for="playback-speed">
-          <span>速度</span>
-          <input
-            id="playback-speed"
-            class="form-control form-control-sm"
-            type="number"
-            min="10"
-            max="500"
-            step="1"
-            value="120"
-          />
-          <span>BPM</span>
-        </label>
+      <div class="play-toolbar" id="playToolbar">
+        <div class="play-controls">
+          <label class="play-option" for="repeat-playback">
+            <input
+              id="repeat-playback"
+              class="form-check-input"
+              type="checkbox"
+            />
+            <span>重複播放</span>
+          </label>
+          <label class="play-option" for="playback-speed">
+            <span>速度</span>
+            <input
+              id="playback-speed"
+              class="form-control form-control-sm"
+              type="number"
+              min="10"
+              max="500"
+              step="1"
+              value="120"
+            />
+            <span>BPM</span>
+          </label>
+        </div>
       </div>
+      <button
+        id="playToggle"
+        type="button"
+        class="collapse-toggle"
+        aria-expanded="true"
+        aria-controls="playToolbar"
+      >
+        <i class="bi bi-chevron-up" aria-hidden="true"></i>
+      </button>
       <div class="control-stack">
         <button
           id="print"
@@ -445,13 +496,12 @@
                 <code>,</code> 降八度、加 <code>'</code> 升八度。
               </li>
               <li>
-                音符後面的數字是時值，以 <code>L:</code>
-                設定的單位音符長度為基準，例如 <code>L:1/8</code> 時
-                <code>A6</code> 代表 A 音維持 6 個八分音符長。
+                音符後面的數字是時值，以
+                <code>L:</code> 設定的單位音符長度為基準，例如
+                <code>L:1/8</code> 時 <code>A6</code> 代表 A 音維持 6
+                個八分音符長。
               </li>
-              <li>
-                <code>|</code> 為小節線，<code>||</code> 為結束線。
-              </li>
+              <li><code>|</code> 為小節線，<code>||</code> 為結束線。</li>
               <li>
                 和絃或指法用引號標註在音符前，例如
                 <code>"Am"</code> 顯示和絃、<code>"^1"</code>
@@ -462,9 +512,10 @@
                 表示圓滑線（tie），播放時會合併成一個持續音，不會重複觸發。
               </li>
               <li>
-                檔頭常用欄位：<code>T:</code> 標題、<code>C:</code>
-                作曲、<code>M:</code> 拍號、<code>K:</code> 調性、
-                <code>Q:</code> 速度。
+                檔頭常用欄位：<code>T:</code> 標題、<code>C:</code> 作曲、<code
+                  >M:</code
+                >
+                拍號、<code>K:</code> 調性、 <code>Q:</code> 速度。
               </li>
             </ul>
             <h6 class="fw-bold">簡譜文字模式</h6>
@@ -474,16 +525,14 @@
                 代表唱名（Do–Si），<code>0</code> 表示休止符。
               </li>
               <li>
-                數字後加 <code>'</code> 升八度（可疊加 <code>''</code>）、
-                加 <code>,</code> 降八度（可疊加 <code>,,</code>）。
+                數字後加 <code>'</code> 升八度（可疊加 <code>''</code>）、 加
+                <code>,</code> 降八度（可疊加 <code>,,</code>）。
               </li>
               <li>
                 數字後加底線 <code>_</code>
                 縮短時值（一條線八分音符、兩條線十六分音符）。
               </li>
-              <li>
-                加 <code>.</code> 為附點，延長一半時值；可疊加多個點。
-              </li>
+              <li>加 <code>.</code> 為附點，延長一半時值；可疊加多個點。</li>
               <li>
                 加 <code>-</code> 延長上一個音符一拍，可疊加多個
                 <code>-</code>；效果等同圓滑線，不會重複播放。
@@ -570,11 +619,13 @@
             '"Am""^2"A2B2c4|"Em"B4G4|"Am"A8-|A8||',
           ].join("\n"),
           text: [
-            "T:Octave and Duration Example",
+            "T:祈願",
             "M:4/4",
             "K:C",
-            "1, 2,, 3 4' | 5'' 6_ 7_ 1- | 2. 3__ 4__ 5- |",
-            "6.. 7__ 1- | 2--- | 0 0 0 0 |]",
+            "2' 6 7 1' | 7_ 6_ 5 6- |",
+            "2' 6 7 1' | 1'_ 2'_ 3' 2'- |",
+            "2' 6' 7' 4' | 3'_ 2'_ 1' 2'- |",
+            "2 6 2 4 | 5_ 4_ 3 2- |]",
           ].join("\n"),
         };
         var drafts = {
@@ -588,6 +639,8 @@
         var playButton = document.getElementById("play");
         var playIcon = playButton.querySelector(".bi");
         var playLabel = playButton.querySelector(".play-label");
+        var playToolbar = document.getElementById("playToolbar");
+        var playToggleButton = document.getElementById("playToggle");
         var printButton = document.getElementById("print");
         var repeatPlaybackCheckbox = document.getElementById("repeat-playback");
         var playbackSpeedInput = document.getElementById("playback-speed");
@@ -721,7 +774,10 @@
             });
             offsetBeats += durationBeats;
           });
-          return { audioSchedule: audioSchedule, highlightSchedule: highlightSchedule };
+          return {
+            audioSchedule: audioSchedule,
+            highlightSchedule: highlightSchedule,
+          };
         }
 
         function playTune() {
@@ -815,6 +871,13 @@
         playButton.addEventListener("click", function () {
           if (playing) stopPlayback();
           else playTune();
+        });
+        playToggleButton.addEventListener("click", function () {
+          var collapsed = playToolbar.classList.toggle("collapsed");
+          playToggleButton.setAttribute("aria-expanded", String(!collapsed));
+          playToggleButton.innerHTML = collapsed
+            ? '<i class="bi bi-chevron-down" aria-hidden="true"></i>'
+            : '<i class="bi bi-chevron-up" aria-hidden="true"></i>';
         });
         printButton.addEventListener("click", function () {
           render();

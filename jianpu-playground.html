@@ -26,13 +26,19 @@
       }
       .toolbar {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 10px;
         margin-bottom: 10px;
       }
+      .toolbar .hint {
+        color: #555;
+        font-size: 13px;
+      }
       select,
       button {
         padding: 7px 10px;
+        min-height: 40px;
         font: inherit;
       }
       button {
@@ -74,6 +80,11 @@
         border: 1px solid #ddd;
         background: white;
       }
+      #preview svg {
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
       #messages {
         margin: 10px 0 0;
         padding: 10px;
@@ -103,6 +114,42 @@
         textarea {
           height: 360px;
           min-height: 260px;
+        }
+      }
+      @media (max-width: 600px) {
+        body {
+          padding: 10px;
+        }
+        h1 {
+          font-size: 17px;
+        }
+        .toolbar {
+          gap: 8px;
+        }
+        .toolbar label {
+          display: none;
+        }
+        .toolbar .hint {
+          width: 100%;
+          order: 1;
+        }
+        #mode {
+          flex: 1 1 auto;
+        }
+        #play,
+        #print {
+          flex: 1 1 auto;
+        }
+        .panel {
+          padding: 10px;
+        }
+        textarea {
+          height: 300px;
+          min-height: 200px;
+          font-size: 13px;
+        }
+        #preview {
+          padding-left: 8px;
         }
       }
       @page {
@@ -184,7 +231,7 @@
       </select>
       <button id="play" type="button">播放</button>
       <button id="print" type="button">列印／儲存 PDF</button>
-      <span>ABC 指法範例：<code>"^1"A</code></span>
+      <span class="hint">ABC 指法範例：<code>"^1"A</code></span>
     </div>
 
     <main class="workspace">

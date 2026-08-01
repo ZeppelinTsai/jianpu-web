@@ -2829,6 +2829,7 @@ module.exports = createJianpuConverter;
 var createJianpuConverter = __webpack_require__(/*! ./create-jianpu-converter */ "./src/jianpu/create-jianpu-converter.js");
 var layoutJianpu = __webpack_require__(/*! ./layout-jianpu */ "./src/jianpu/layout-jianpu.js");
 var parseJianpu = __webpack_require__(/*! ./parse-jianpu */ "./src/jianpu/parse-jianpu.js");
+var pianoPlayer = __webpack_require__(/*! ./piano-player */ "./src/jianpu/piano-player.js");
 var renderJianpuSvg = __webpack_require__(/*! ./render-jianpu-svg */ "./src/jianpu/render-jianpu-svg.js");
 function keyLabelFromStaffKey(key) {
   key = key || {};
@@ -2939,6 +2940,7 @@ module.exports = {
   createJianpuConverter: createJianpuConverter,
   layoutJianpu: layoutJianpu,
   parseJianpu: parseJianpu,
+  pianoPlayer: pianoPlayer,
   renderJianpuSvg: renderJianpuSvg
 };
 
@@ -2956,12 +2958,16 @@ module.exports = {
 var DEFAULT_OPTIONS = {
   staffWidth: 800,
   measuresPerLine: undefined,
-  paddingLeft: 24,
+  paddingLeft: 32,
   paddingRight: 24,
-  paddingTop: 20,
-  paddingBottom: 20,
-  headerHeight: 80,
-  lineHeight: 102,
+  paddingTop: 16,
+  paddingBottom: 16,
+  headerHeight: 68,
+  lineHeight: 107,
+  noteBaselineOffset: 63,
+  linesPerPage: 10,
+  pageFooterHeight: 24,
+  pageNumberFontSize: 13,
   measurePadding: 10,
   eventGap: 10,
   minimumMeasurePadding: 2,
@@ -2970,10 +2976,10 @@ var DEFAULT_OPTIONS = {
   numberFontSize: 22,
   headerFontSize: 16,
   showTempo: false,
-  titleFontSize: 24,
+  titleFontSize: 35,
   composerFontSize: 14,
   measureNumberFontSize: 20,
-  fingeringFontSize: 11,
+  fingeringFontSize: 14,
   fingeringRadius: 8,
   fingeringGap: 5,
   chordFontSize: 18,
@@ -2986,17 +2992,44 @@ var DEFAULT_OPTIONS = {
   octaveDotRadius: 2,
   octaveDotGap: 5,
   tieArcHeight: 10,
-  numberTopOffset: 23,
+  numberTopOffset: 21,
   numberBottomOffset: 5,
-  underlineGap: 2,
+  underlineGap: 0,
   underlineSpacing: 4,
   durationDotWidth: 7,
   durationDotRadius: 1.8,
   extensionDashWidth: 16,
   barGap: 14,
+  doubleBarGap: 4,
+  barTopExtra: 3,
+  barBottomExtra: 8,
   thinBarWidth: 1,
-  thickBarWidth: 4
+  thickBarWidth: 4,
+  tonicMidi: 60
 };
+
+// Jianpu scale degrees (1-7) are treated as a major scale relative to the
+// tune's tonic; this is an approximation that ignores mode/key-signature
+// nuance but is good enough to derive a clickable pitch per note.
+var SCALE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+var ACCIDENTAL_SEMITONES = {
+  sharp: 1,
+  flat: -1,
+  natural: 0,
+  dblsharp: 2,
+  dblflat: -2
+};
+function noteMidiNumber(note, options) {
+  if (!note.number) return null;
+  var semitone = SCALE_SEMITONES[note.number - 1];
+  var accidental = ACCIDENTAL_SEMITONES[note.accidentalMark] || 0;
+  return options.tonicMidi + semitone + accidental + note.octaveDots * 12;
+}
+function eventDurationBeats(marks) {
+  var dotMultiplier = marks.dots === 1 ? 1.5 : marks.dots === 2 ? 1.75 : 1;
+  if (marks.underlines > 0) return dotMultiplier / Math.pow(2, marks.underlines);
+  return (marks.extensionDashes + 1) * dotMultiplier;
+}
 var SUPPORTED_BARS = {
   bar_thin: true,
   bar_thin_thin: true,
@@ -3029,10 +3062,10 @@ function accidentalText(accidentalMark) {
 function barWidth(barType, options) {
   switch (barType) {
     case "bar_thin_thin":
-      return options.thinBarWidth * 2 + options.barGap;
+      return options.thinBarWidth + options.thickBarWidth + options.doubleBarGap;
     case "bar_thin_thick":
     case "bar_thick_thin":
-      return options.thinBarWidth + options.thickBarWidth + options.barGap;
+      return options.thinBarWidth + options.thickBarWidth + options.doubleBarGap;
     default:
       return options.thinBarWidth;
   }
@@ -3206,8 +3239,9 @@ function mergeBeamUnderlines(measure, options) {
   finishGroup();
 }
 function positionLine(line, lineIndex, contentWidth, options) {
-  var lineTop = options.paddingTop + options.headerHeight + lineIndex * options.lineHeight;
-  var baselineY = lineTop + options.lineHeight * 0.62;
+  var pageIndex = Math.floor(lineIndex / options.linesPerPage);
+  var lineTop = options.paddingTop + options.headerHeight + lineIndex * options.lineHeight + pageIndex * options.pageFooterHeight;
+  var baselineY = lineTop + options.noteBaselineOffset;
   var cursorX = options.paddingLeft;
   var fixedWidth = line.measures.reduce(function (sum, measure) {
     return sum + measure.fixedWidth;
@@ -3233,26 +3267,33 @@ function positionLine(line, lineIndex, contentWidth, options) {
   line.height = options.lineHeight;
   line.measureNumber = {
     text: String(line.measures[0].index + 1),
-    x: Math.max(4, options.paddingLeft - 16),
+    x: Math.max(4, options.paddingLeft - 28),
     y: lineTop + 9
   };
-  line.measurePadding = measurePadding;
   line.eventGap = eventGap;
-  line.width = fixedWidth + line.measures.length * measurePadding * 2 + line.measures.reduce(function (sum, measure) {
+  var innerLineWidth = fixedWidth + line.measures.reduce(function (sum, measure) {
     return sum + measure.flexGapCount * eventGap;
   }, 0);
-  // Centre every measure's note group between its left and right boundaries.
-  // Splitting the remaining line width equally across both sides of every
-  // measure avoids leaving a large one-sided gap after a bar line.
-  line.justifyMeasurePadding = line.measures.length ? Math.max(0, contentWidth - line.width) / (line.measures.length * 2) : 0;
-  measurePadding += line.justifyMeasurePadding;
-  line.measurePadding = measurePadding;
-  line.width += line.justifyMeasurePadding * line.measures.length * 2;
-  line.measures.forEach(function (measure) {
+  // Give every measure an equal share of the remaining width while keeping
+  // the first musical event at one stable x position on every line.
+  var paddingPerMeasure = line.measures.length ? Math.max(0, contentWidth - innerLineWidth) / line.measures.length : 0;
+  var firstLeftPadding = Math.min(options.measurePadding, paddingPerMeasure / 2);
+  line.measurePadding = firstLeftPadding;
+  line.firstMeasurePadding = firstLeftPadding;
+  line.firstMeasureContentPadding = options.measurePadding;
+  line.paddingPerMeasure = paddingPerMeasure;
+  line.width = innerLineWidth + paddingPerMeasure * line.measures.length;
+  line.measures.forEach(function (measure, measureIndex) {
+    var leftPadding = measureIndex === 0 ? firstLeftPadding : paddingPerMeasure / 2;
+    var rightPadding = measureIndex === 0 ? paddingPerMeasure - firstLeftPadding : paddingPerMeasure / 2;
     measure.x = cursorX;
     measure.y = lineTop;
-    measure.width = measure.fixedWidth + measurePadding * 2 + measure.flexGapCount * eventGap;
-    var eventX = cursorX + measurePadding + (measure.endingBar ? options.barGap / 2 : 0);
+    measure.leftPadding = leftPadding;
+    measure.rightPadding = rightPadding;
+    measure.width = measure.fixedWidth + leftPadding + rightPadding + measure.flexGapCount * eventGap;
+    var contentLeftPadding = measureIndex === 0 ? options.measurePadding : leftPadding;
+    measure.contentLeftPadding = contentLeftPadding;
+    var eventX = cursorX + contentLeftPadding + (measure.endingBar ? options.barGap / 2 : 0);
     measure.events.forEach(function (event) {
       event.x = eventX;
       event.y = baselineY;
@@ -3283,6 +3324,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
           number: note.number,
           octaveDots: note.octaveDots,
           accidentalMark: note.accidentalMark,
+          midi: noteMidiNumber(note, options),
           tieStart: note.tieStart === true,
           tieEnd: note.tieEnd === true,
           accidentalText: accidental,
@@ -3294,6 +3336,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         });
       });
       event.durationMarks = Object.assign({}, event.source.durationMarks);
+      event.durationBeats = eventDurationBeats(event.durationMarks);
       event.beam = Object.assign({
         start: false,
         end: false
@@ -3381,8 +3424,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
     if (measure.endingBar) {
       var barX = cursorX + measure.width - measure.endingBar.width;
       measure.endingBar.x = barX;
-      measure.endingBar.y1 = lineTop + 12;
-      measure.endingBar.y2 = lineTop + options.lineHeight - 18;
+      measure.endingBar.y1 = baselineY - options.numberFontSize - options.barTopExtra;
+      measure.endingBar.y2 = baselineY + options.barBottomExtra;
       measure.endingBar.lines = [];
       if (measure.endingBar.type === "bar_thin_thin") {
         measure.endingBar.lines.push({
@@ -3392,11 +3435,11 @@ function positionLine(line, lineIndex, contentWidth, options) {
           y2: measure.endingBar.y2,
           strokeWidth: options.thinBarWidth
         }, {
-          x1: barX + options.barGap,
-          x2: barX + options.barGap,
+          x1: barX + options.doubleBarGap,
+          x2: barX + options.doubleBarGap,
           y1: measure.endingBar.y1,
           y2: measure.endingBar.y2,
-          strokeWidth: options.thinBarWidth
+          strokeWidth: options.thickBarWidth
         });
       } else if (measure.endingBar.type === "bar_thin_thick") {
         measure.endingBar.lines.push({
@@ -3406,8 +3449,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
           y2: measure.endingBar.y2,
           strokeWidth: options.thinBarWidth
         }, {
-          x1: barX + options.barGap,
-          x2: barX + options.barGap,
+          x1: barX + options.doubleBarGap,
+          x2: barX + options.doubleBarGap,
           y1: measure.endingBar.y1,
           y2: measure.endingBar.y2,
           strokeWidth: options.thickBarWidth
@@ -3420,8 +3463,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
           y2: measure.endingBar.y2,
           strokeWidth: options.thickBarWidth
         }, {
-          x1: barX + options.barGap,
-          x2: barX + options.barGap,
+          x1: barX + options.doubleBarGap,
+          x2: barX + options.doubleBarGap,
           y1: measure.endingBar.y1,
           y2: measure.endingBar.y2,
           strokeWidth: options.thinBarWidth
@@ -3443,8 +3486,10 @@ function tieSignature(note) {
   return note.number + ":" + note.octaveDots;
 }
 function tiePath(startX, endX, y, arcHeight) {
-  var middleX = (startX + endX) / 2;
-  return "M " + startX + " " + y + " C " + middleX + " " + (y - arcHeight) + ", " + middleX + " " + (y - arcHeight) + ", " + endX + " " + y;
+  var width = endX - startX;
+  var firstControlX = startX + width / 3;
+  var secondControlX = startX + width * 2 / 3;
+  return "M " + startX + " " + y + " C " + firstControlX + " " + (y - arcHeight) + ", " + secondControlX + " " + (y - arcHeight) + ", " + endX + " " + y;
 }
 function tieAnchorY(note, options) {
   var anchorY = note.y - options.numberTopOffset;
@@ -3516,6 +3561,18 @@ function layoutJianpu(elements, options, measureText) {
     positionLine(line, index, contentWidth, options);
   });
   layoutTies(lines, options, warnings);
+  var totalPages = Math.ceil(lines.length / options.linesPerPage);
+  var pageNumbers = [];
+  if (totalPages > 1) {
+    for (var pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      var lastLineIndex = Math.min(lines.length - 1, (pageIndex + 1) * options.linesPerPage - 1);
+      pageNumbers.push({
+        text: pageIndex + 1 + " / " + totalPages,
+        x: options.staffWidth - options.paddingRight,
+        y: lines[lastLineIndex].y + options.lineHeight + options.pageFooterHeight * 0.7
+      });
+    }
+  }
   var infoX = options.paddingLeft;
   var infoY = options.paddingTop + options.headerHeight - 12;
   var keyLabel = options.keyLabel || "";
@@ -3537,7 +3594,7 @@ function layoutJianpu(elements, options, measureText) {
   var tempoX = meterTextX + (meterLabel ? meterWidth + 12 : 0);
   return {
     width: options.staffWidth,
-    height: options.paddingTop + options.headerHeight + lines.length * options.lineHeight + options.paddingBottom,
+    height: options.paddingTop + options.headerHeight + lines.length * options.lineHeight + (totalPages > 1 ? totalPages * options.pageFooterHeight : 0) + options.paddingBottom,
     header: {
       title: options.title || "",
       keyLabel: keyLabel,
@@ -3593,9 +3650,11 @@ function layoutJianpu(elements, options, measureText) {
       measureNumberFontSize: options.measureNumberFontSize,
       fingeringFontSize: options.fingeringFontSize,
       chordFontSize: options.chordFontSize,
-      dynamicFontSize: options.dynamicFontSize
+      dynamicFontSize: options.dynamicFontSize,
+      pageNumberFontSize: options.pageNumberFontSize
     },
     lines: lines,
+    pageNumbers: pageNumbers,
     warnings: warnings
   };
 }
@@ -3831,6 +3890,138 @@ module.exports = parseJianpu;
 
 /***/ }),
 
+/***/ "./src/jianpu/piano-player.js":
+/*!************************************!*\
+  !*** ./src/jianpu/piano-player.js ***!
+  \************************************/
+/***/ (function(module) {
+
+"use strict";
+
+
+// Minimal browser-only piano sample player used to click-to-play jianpu
+// notes. The sample pack only recorded 4 notes per octave (C, D#, F#, A),
+// spanning the full 88-key piano range A0-C8; every other pitch is played
+// back by pitch-shifting the nearest sample.
+var SAMPLE_DIR = "./piano-samples/";
+var NOTE_SEMITONES = {
+  C: 0,
+  "C#": 1,
+  D: 2,
+  "D#": 3,
+  E: 4,
+  F: 5,
+  "F#": 6,
+  G: 7,
+  "G#": 8,
+  A: 9,
+  "A#": 10,
+  B: 11
+};
+var SAMPLE_NAMES = ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "D#1", "D#2", "D#3", "D#4", "D#5", "D#6", "D#7", "F#1", "F#2", "F#3", "F#4", "F#5", "F#6", "F#7"];
+function midiFromNoteName(name) {
+  var match = /^([A-G]#?)(-?\d+)$/.exec(name);
+  return (Number(match[2]) + 1) * 12 + NOTE_SEMITONES[match[1]];
+}
+var samples = SAMPLE_NAMES.map(function (name) {
+  return {
+    name: name,
+    fileName: name + "v10.mp3",
+    midi: midiFromNoteName(name)
+  };
+});
+var audioContext = null;
+var buffers = {}; // fileName -> decoded AudioBuffer
+var loadingPromise = null;
+function getAudioContext() {
+  if (!audioContext) {
+    var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContextClass();
+  }
+  return audioContext;
+}
+function loadSample(sample, baseUrl) {
+  // Encode only the filename: sample names like "F#4v10.mp3" contain "#",
+  // which a relative URL would otherwise parse as a fragment separator.
+  return fetch(baseUrl + encodeURIComponent(sample.fileName)).then(function (response) {
+    if (!response.ok) throw new Error("Could not load piano sample " + sample.fileName);
+    return response.arrayBuffer();
+  }).then(function (arrayBuffer) {
+    return getAudioContext().decodeAudioData(arrayBuffer);
+  }).then(function (audioBuffer) {
+    buffers[sample.fileName] = audioBuffer;
+  });
+}
+
+/**
+ * Pre-load and decode all 30 piano samples.
+ * @param {string} [baseUrl] Directory containing the mp3 files.
+ * @returns {Promise}
+ */
+function loadSamples(baseUrl) {
+  if (!loadingPromise) {
+    baseUrl = baseUrl || SAMPLE_DIR;
+    loadingPromise = Promise.all(samples.map(function (sample) {
+      return loadSample(sample, baseUrl);
+    }));
+  }
+  return loadingPromise;
+}
+function nearestSample(midiNumber) {
+  var nearest = samples[0];
+  var nearestDistance = Infinity;
+  samples.forEach(function (sample) {
+    var distance = Math.abs(sample.midi - midiNumber);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = sample;
+    }
+  });
+  return nearest;
+}
+
+/**
+ * Play the sample nearest to midiNumber, pitch-shifted to the exact note.
+ * @param {number} midiNumber MIDI note number (60 = middle C).
+ * @param {number} [duration] Seconds to hold the note before releasing.
+ * @returns {AudioBufferSourceNode|null}
+ */
+function playNote(midiNumber, duration) {
+  if (typeof midiNumber !== "number" || !isFinite(midiNumber)) return null;
+  var sample = nearestSample(midiNumber);
+  var buffer = buffers[sample.fileName];
+  if (!buffer) {
+    loadSamples().then(function () {
+      playNote(midiNumber, duration);
+    });
+    return null;
+  }
+  var context = getAudioContext();
+  if (context.state === "suspended") context.resume();
+  var source = context.createBufferSource();
+  source.buffer = buffer;
+  source.playbackRate.value = Math.pow(2, (midiNumber - sample.midi) / 12);
+  var gainNode = context.createGain();
+  source.connect(gainNode);
+  gainNode.connect(context.destination);
+  var seconds = typeof duration === "number" && duration > 0 ? duration : 0.8;
+  var releaseStart = Math.max(0, seconds - 0.08);
+  var now = context.currentTime;
+  gainNode.gain.setValueAtTime(1, now);
+  gainNode.gain.setValueAtTime(1, now + releaseStart);
+  gainNode.gain.linearRampToValueAtTime(0.0001, now + seconds);
+  source.start(now);
+  source.stop(now + seconds + 0.05);
+  return source;
+}
+module.exports = {
+  samples: samples,
+  loadSamples: loadSamples,
+  playNote: playNote
+};
+
+/***/ }),
+
 /***/ "./src/jianpu/render-jianpu-svg.js":
 /*!*****************************************!*\
   !*** ./src/jianpu/render-jianpu-svg.js ***!
@@ -3858,18 +4049,20 @@ function circleSvg(circle, className) {
  * alter coordinates.
  *
  * @param {{width:number,height:number,header:Object,style:Object,lines:Array}} layout
- * @param {{fontFamily?:string,notationFontFamily?:string,className?:string}} options
+ * @param {{fontFamily?:string,titleFontFamily?:string,
+ *   notationFontFamily?:string,className?:string}} options
  * @returns {string}
  */
 function renderJianpuSvg(layout, options) {
   options = options || {};
   var fontFamily = options.fontFamily || '"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif';
   var notationFontFamily = options.notationFontFamily || '"Times New Roman", "Noto Serif", "Noto Serif Symbols", Georgia, serif';
+  var titleFontFamily = options.titleFontFamily || '"Songti TC", "PMingLiU", "MingLiU", "SimSun", serif';
   var className = options.className || "abcjs-jianpu";
   var output = [];
   output.push('<?xml version="1.0" encoding="UTF-8"?>');
   output.push('<svg xmlns="http://www.w3.org/2000/svg" class="' + escapeXml(className) + '" width="' + number(layout.width) + '" height="' + number(layout.height) + '" viewBox="0 0 ' + number(layout.width) + " " + number(layout.height) + '" role="img" aria-label="' + escapeXml(layout.header.title || "Jianpu notation") + '">');
-  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," + ".jianpu-measure-number,.jianpu-fingering-text{" + "font-family:" + notationFontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-meter{text-anchor:middle;font-size:" + number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) + "px;font-weight:600}" + ".jianpu-composer{text-anchor:end;font-size:" + number(layout.style.composerFontSize) + "px;font-style:italic}" + ".jianpu-chord{text-anchor:middle;font-size:" + number(layout.style.chordFontSize) + "px;font-weight:600}" + ".jianpu-dynamic{text-anchor:middle;font-size:" + number(layout.style.dynamicFontSize) + "px;font-style:italic}" + ".jianpu-measure-number{font-size:" + number(layout.style.measureNumberFontSize) + "px;font-weight:600}" + ".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" + "font-size:" + number(layout.style.fingeringFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" + ".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + ".jianpu-meter-line{stroke:currentColor;fill:none}" + "</style>");
+  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," + ".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number{" + "font-family:" + notationFontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px;font-weight:700}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600;" + "font-family:" + titleFontFamily + "}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-meter{text-anchor:middle;font-size:" + number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) + "px;font-weight:400}" + ".jianpu-composer{text-anchor:end;font-size:" + number(layout.style.composerFontSize) + "px;font-style:italic}" + ".jianpu-chord{text-anchor:middle;font-size:" + number(layout.style.chordFontSize) + "px;font-weight:400}" + ".jianpu-dynamic{text-anchor:middle;font-size:" + number(layout.style.dynamicFontSize) + "px;font-style:italic}" + ".jianpu-measure-number{font-size:" + number(layout.style.measureNumberFontSize) + "px;font-weight:400}" + ".jianpu-page-number{text-anchor:end;font-size:" + number(layout.style.pageNumberFontSize || 13) + "px;font-weight:400}" + ".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" + "font-size:" + number(layout.style.fingeringFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" + ".jianpu-note{cursor:pointer}" + ".jianpu-note:hover .jianpu-number{fill:#1a73e8}" + ".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + ".jianpu-meter-line{stroke:currentColor;fill:none}" + "</style>");
   if (layout.header.title) {
     output.push('<text class="jianpu-title" x="' + number(layout.header.titlePosition.x) + '" y="' + number(layout.header.titlePosition.y) + '">' + escapeXml(layout.header.title) + "</text>");
   }
@@ -3895,8 +4088,12 @@ function renderJianpuSvg(layout, options) {
     layoutLine.measures.forEach(function (measure) {
       output.push('<g class="jianpu-measure" data-measure="' + (measure.index + 1) + '">');
       measure.events.forEach(function (event) {
-        output.push('<g class="jianpu-event">');
+        output.push('<g class="jianpu-event" data-duration-beats="' + number(event.durationBeats) + '">');
         event.notePositions.forEach(function (note) {
+          var clickable = typeof note.midi === "number";
+          if (clickable) {
+            output.push('<g class="jianpu-note" data-midi="' + note.midi + '">');
+          }
           if (note.accidentalPosition) {
             output.push('<text class="jianpu-accidental" x="' + number(note.accidentalPosition.x) + '" y="' + number(note.accidentalPosition.y) + '">' + escapeXml(note.accidentalText) + "</text>");
           }
@@ -3904,6 +4101,7 @@ function renderJianpuSvg(layout, options) {
           note.octaveDotPositions.forEach(function (dot) {
             output.push(circleSvg(dot, "jianpu-octave-dot"));
           });
+          if (clickable) output.push("</g>");
         });
         event.annotations.chords.forEach(function (annotation) {
           output.push('<text class="jianpu-chord" x="' + number(annotation.x) + '" y="' + number(annotation.y) + '">' + escapeXml(annotation.text) + "</text>");
@@ -3940,6 +4138,9 @@ function renderJianpuSvg(layout, options) {
       output.push('<path class="jianpu-tie" d="' + escapeXml(tie.d) + '" stroke-width="1.2"/>');
     });
     output.push("</g>");
+  });
+  (layout.pageNumbers || []).forEach(function (pageNumber) {
+    output.push('<text class="jianpu-page-number" x="' + number(pageNumber.x) + '" y="' + number(pageNumber.y) + '">' + escapeXml(pageNumber.text) + "</text>");
   });
   output.push("</svg>");
   return output.join("\n");

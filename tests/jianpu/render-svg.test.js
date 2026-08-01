@@ -46,6 +46,7 @@ var svg = renderJianpuSvg(layout);
 assert.match(svg, /^<\?xml/);
 assert.match(svg, /<svg[\s\S]*<\/svg>$/);
 assert.match(svg, /"Times New Roman", "Noto Serif"/);
+assert.match(svg, /"Songti TC", "PMingLiU", "MingLiU", "SimSun", serif/);
 assert.strictEqual((svg.match(/class="jianpu-number"/g) || []).length, 12);
 assert.strictEqual((svg.match(/class="jianpu-underline jianpu-beam"/g) || []).length, 1);
 assert.strictEqual((svg.match(/class="jianpu-extension"/g) || []).length, 2);

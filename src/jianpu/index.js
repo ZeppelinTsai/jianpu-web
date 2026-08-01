@@ -3,6 +3,7 @@
 var createJianpuConverter = require("./create-jianpu-converter");
 var layoutJianpu = require("./layout-jianpu");
 var parseJianpu = require("./parse-jianpu");
+var pianoPlayer = require("./piano-player");
 var renderJianpuSvg = require("./render-jianpu-svg");
 
 function keyLabelFromStaffKey(key) {
@@ -133,5 +134,6 @@ module.exports = {
 	createJianpuConverter: createJianpuConverter,
 	layoutJianpu: layoutJianpu,
 	parseJianpu: parseJianpu,
+	pianoPlayer: pianoPlayer,
 	renderJianpuSvg: renderJianpuSvg,
 };

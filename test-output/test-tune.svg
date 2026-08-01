@@ -1,58 +1,80 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="abcjs-jianpu" width="800" height="222" viewBox="0 0 800 222" role="img" aria-label="Test Tune">
-<style>.abcjs-jianpu{background:#fff;color:#111}.jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{font-family:"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif;fill:currentColor}.jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic,.jianpu-measure-number,.jianpu-fingering-text{font-family:"Times New Roman", "Noto Serif", "Noto Serif Symbols", Georgia, serif;fill:currentColor}.jianpu-number{text-anchor:middle;font-size:22px}.jianpu-accidental{text-anchor:end;font-size:15.4px}.jianpu-title{text-anchor:middle;font-size:24px;font-weight:600}.jianpu-header{font-size:16px}.jianpu-meter{text-anchor:middle;font-size:12.48px;font-weight:600}.jianpu-composer{text-anchor:end;font-size:14px;font-style:italic}.jianpu-chord{text-anchor:middle;font-size:18px;font-weight:600}.jianpu-dynamic{text-anchor:middle;font-size:13px;font-style:italic}.jianpu-measure-number{font-size:20px;font-weight:600}.jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;font-size:11px}.jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}.jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}.jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{stroke:currentColor;fill:none;stroke-linecap:butt}.jianpu-meter-line{stroke:currentColor;fill:none}</style>
-<text class="jianpu-title" x="400" y="44">Test Tune</text>
-<text class="jianpu-header" x="24" y="88">1=C</text>
-<text class="jianpu-meter jianpu-meter-numerator" x="66.544" y="78">4</text>
-<text class="jianpu-meter jianpu-meter-denominator" x="66.544" y="95">4</text>
-<line class="jianpu-meter-line" x1="61.8" y1="83" x2="71.288" y2="83" stroke-width="1"/>
+<svg xmlns="http://www.w3.org/2000/svg" class="abcjs-jianpu" width="800" height="207" viewBox="0 0 800 207" role="img" aria-label="Test Tune">
+<style>.abcjs-jianpu{background:#fff;color:#111}.jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{font-family:"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif;fill:currentColor}.jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic,.jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number{font-family:"Times New Roman", "Noto Serif", "Noto Serif Symbols", Georgia, serif;fill:currentColor}.jianpu-number{text-anchor:middle;font-size:22px;font-weight:700}.jianpu-accidental{text-anchor:end;font-size:15.4px}.jianpu-title{text-anchor:middle;font-size:35px;font-weight:600;font-family:"Songti TC", "PMingLiU", "MingLiU", "SimSun", serif}.jianpu-header{font-size:16px}.jianpu-meter{text-anchor:middle;font-size:12.48px;font-weight:400}.jianpu-composer{text-anchor:end;font-size:14px;font-style:italic}.jianpu-chord{text-anchor:middle;font-size:18px;font-weight:400}.jianpu-dynamic{text-anchor:middle;font-size:13px;font-style:italic}.jianpu-measure-number{font-size:20px;font-weight:400}.jianpu-page-number{text-anchor:end;font-size:13px;font-weight:400}.jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;font-size:14px}.jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}.jianpu-note{cursor:pointer}.jianpu-note:hover .jianpu-number{fill:#1a73e8}.jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}.jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{stroke:currentColor;fill:none;stroke-linecap:butt}.jianpu-meter-line{stroke:currentColor;fill:none}</style>
+<text class="jianpu-title" x="400" y="51">Test Tune</text>
+<text class="jianpu-header" x="32" y="72">1=C</text>
+<text class="jianpu-meter jianpu-meter-numerator" x="74.544" y="62">4</text>
+<text class="jianpu-meter jianpu-meter-denominator" x="74.544" y="79">4</text>
+<line class="jianpu-meter-line" x1="69.8" y1="67" x2="79.288" y2="67" stroke-width="1"/>
 <g class="jianpu-line" data-line="1">
-<text class="jianpu-measure-number" x="8" y="109">1</text>
+<text class="jianpu-measure-number" x="4" y="93">1</text>
 <g class="jianpu-measure" data-measure="1">
-<g class="jianpu-event">
-<text class="jianpu-number" x="84.133" y="163.24">1</text>
+<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-note" data-midi="60">
+<text class="jianpu-number" x="56" y="147">1</text>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-number" x="123.133" y="163.24">2</text>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-number" x="162.133" y="163.24">3</text>
+<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-note" data-midi="62">
+<text class="jianpu-number" x="95" y="147">2</text>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-number" x="201.133" y="163.24">4</text>
 </g>
-<line class="jianpu-bar" x1="261.267" y1="112" x2="261.267" y2="184" stroke-width="1"/>
+<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-note" data-midi="64">
+<text class="jianpu-number" x="134" y="147">3</text>
+</g>
+</g>
+<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-note" data-midi="65">
+<text class="jianpu-number" x="173" y="147">4</text>
+</g>
+</g>
+<line class="jianpu-bar" x1="269.933" y1="122" x2="269.933" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="2">
-<g class="jianpu-event">
-<text class="jianpu-number" x="322.4" y="163.24">5</text>
-<line class="jianpu-extension" x1="354.4" y1="158.24" x2="370.4" y2="158.24" stroke-width="1.5"/>
+<g class="jianpu-event" data-duration-beats="2">
+<g class="jianpu-note" data-midi="67">
+<text class="jianpu-number" x="331.4" y="147">5</text>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-number" x="402.4" y="163.24">6</text>
+<line class="jianpu-extension" x1="363.4" y1="142" x2="379.4" y2="142" stroke-width="1.5"/>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-number" x="441.4" y="163.24">7</text>
+<g class="jianpu-event" data-duration-beats="0.5">
+<g class="jianpu-note" data-midi="69">
+<text class="jianpu-number" x="411.4" y="147">6</text>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-number" x="480.4" y="163.24">0</text>
 </g>
-<line class="jianpu-underline jianpu-beam" x1="395.4" y1="170.24" x2="448.4" y2="170.24" stroke-width="1.4"/>
-<line class="jianpu-bar" x1="540.533" y1="112" x2="540.533" y2="184" stroke-width="1"/>
+<g class="jianpu-event" data-duration-beats="0.5">
+<g class="jianpu-note" data-midi="71">
+<text class="jianpu-number" x="450.4" y="147">7</text>
+</g>
+</g>
+<g class="jianpu-event" data-duration-beats="1">
+<text class="jianpu-number" x="489.4" y="147">0</text>
+</g>
+<line class="jianpu-underline jianpu-beam" x1="404.4" y1="152" x2="457.4" y2="152" stroke-width="1.4"/>
+<line class="jianpu-bar" x1="549.867" y1="122" x2="549.867" y2="155" stroke-width="1"/>
 </g>
 <g class="jianpu-measure" data-measure="3">
-<g class="jianpu-event">
-<text class="jianpu-number" x="601.667" y="163.24">1</text>
-<text class="jianpu-number" x="601.667" y="141.24">3</text>
-<text class="jianpu-number" x="601.667" y="119.24">5</text>
+<g class="jianpu-event" data-duration-beats="1">
+<g class="jianpu-note" data-midi="60">
+<text class="jianpu-number" x="611.333" y="147">1</text>
 </g>
-<g class="jianpu-event">
-<text class="jianpu-accidental" x="639.267" y="155.24">♯</text>
-<text class="jianpu-number" x="648.267" y="163.24">4</text>
-<line class="jianpu-extension" x1="687.867" y1="158.24" x2="703.867" y2="158.24" stroke-width="1.5"/>
+<g class="jianpu-note" data-midi="64">
+<text class="jianpu-number" x="611.333" y="125">3</text>
 </g>
-<line class="jianpu-bar" x1="757" y1="112" x2="757" y2="184" stroke-width="1"/>
-<line class="jianpu-bar" x1="771" y1="112" x2="771" y2="184" stroke-width="4"/>
+<g class="jianpu-note" data-midi="67">
+<text class="jianpu-number" x="611.333" y="103">5</text>
+</g>
+</g>
+<g class="jianpu-event" data-duration-beats="2">
+<g class="jianpu-note" data-midi="66">
+<text class="jianpu-accidental" x="648.933" y="139">♯</text>
+<text class="jianpu-number" x="657.933" y="147">4</text>
+</g>
+<line class="jianpu-extension" x1="697.533" y1="142" x2="713.533" y2="142" stroke-width="1.5"/>
+</g>
+<line class="jianpu-bar" x1="767" y1="122" x2="767" y2="155" stroke-width="1"/>
+<line class="jianpu-bar" x1="771" y1="122" x2="771" y2="155" stroke-width="4"/>
 </g>
 </g>
 </svg>

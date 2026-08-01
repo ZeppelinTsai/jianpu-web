@@ -30,7 +30,8 @@ function circleSvg(circle, className) {
  * alter coordinates.
  *
  * @param {{width:number,height:number,header:Object,style:Object,lines:Array}} layout
- * @param {{fontFamily?:string,notationFontFamily?:string,className?:string}} options
+ * @param {{fontFamily?:string,titleFontFamily?:string,
+ *   notationFontFamily?:string,className?:string}} options
  * @returns {string}
  */
 function renderJianpuSvg(layout, options) {
@@ -39,6 +40,8 @@ function renderJianpuSvg(layout, options) {
 		'"Noto Sans", "Noto Sans Symbols 2", "Arial Unicode MS", sans-serif';
 	var notationFontFamily = options.notationFontFamily ||
 		'"Times New Roman", "Noto Serif", "Noto Serif Symbols", Georgia, serif';
+	var titleFontFamily = options.titleFontFamily ||
+		'"Songti TC", "PMingLiU", "MingLiU", "SimSun", serif';
 	var className = options.className || "abcjs-jianpu";
 	var output = [];
 
@@ -54,29 +57,35 @@ function renderJianpuSvg(layout, options) {
 		".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" +
 		"font-family:" + fontFamily + ";fill:currentColor}" +
 		".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," +
-		".jianpu-measure-number,.jianpu-fingering-text{" +
+		".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number{" +
 		"font-family:" + notationFontFamily + ";fill:currentColor}" +
 		".jianpu-number{text-anchor:middle;font-size:" +
-		number(layout.style.numberFontSize) + "px}" +
+		number(layout.style.numberFontSize) + "px;font-weight:700}" +
 		".jianpu-accidental{text-anchor:end;font-size:" +
 		number(layout.style.numberFontSize * 0.7) + "px}" +
 		".jianpu-title{text-anchor:middle;font-size:" +
-		number(layout.style.titleFontSize) + "px;font-weight:600}" +
+		number(layout.style.titleFontSize) + "px;font-weight:600;" +
+		"font-family:" + titleFontFamily + "}" +
 		".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" +
 		".jianpu-meter{text-anchor:middle;font-size:" +
 		number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) +
-		"px;font-weight:600}" +
+		"px;font-weight:400}" +
 		".jianpu-composer{text-anchor:end;font-size:" +
 		number(layout.style.composerFontSize) + "px;font-style:italic}" +
 		".jianpu-chord{text-anchor:middle;font-size:" +
-		number(layout.style.chordFontSize) + "px;font-weight:600}" +
+		number(layout.style.chordFontSize) + "px;font-weight:400}" +
 		".jianpu-dynamic{text-anchor:middle;font-size:" +
 		number(layout.style.dynamicFontSize) + "px;font-style:italic}" +
 		".jianpu-measure-number{font-size:" +
-		number(layout.style.measureNumberFontSize) + "px;font-weight:600}" +
+		number(layout.style.measureNumberFontSize) + "px;font-weight:400}" +
+		".jianpu-page-number{text-anchor:end;font-size:" +
+		number(layout.style.pageNumberFontSize || 13) +
+		"px;font-weight:400}" +
 		".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" +
 		"font-size:" + number(layout.style.fingeringFontSize) + "px}" +
 		".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" +
+		".jianpu-note{cursor:pointer}" +
+		".jianpu-note:hover .jianpu-number{fill:#1a73e8}" +
 		".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" +
 		".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" +
 		"stroke:currentColor;fill:none;stroke-linecap:butt}" +
@@ -139,8 +148,14 @@ function renderJianpuSvg(layout, options) {
 			output.push('<g class="jianpu-measure" data-measure="' +
 				(measure.index + 1) + '">');
 			measure.events.forEach(function(event) {
-				output.push('<g class="jianpu-event">');
+				output.push('<g class="jianpu-event" data-duration-beats="' +
+					number(event.durationBeats) + '">');
 				event.notePositions.forEach(function(note) {
+					var clickable = typeof note.midi === "number";
+					if (clickable) {
+						output.push('<g class="jianpu-note" data-midi="' +
+							note.midi + '">');
+					}
 					if (note.accidentalPosition) {
 						output.push('<text class="jianpu-accidental" x="' +
 							number(note.accidentalPosition.x) + '" y="' +
@@ -153,6 +168,7 @@ function renderJianpuSvg(layout, options) {
 					note.octaveDotPositions.forEach(function(dot) {
 						output.push(circleSvg(dot, "jianpu-octave-dot"));
 					});
+					if (clickable) output.push("</g>");
 				});
 				event.annotations.chords.forEach(function(annotation) {
 					output.push('<text class="jianpu-chord" x="' +
@@ -198,6 +214,11 @@ function renderJianpuSvg(layout, options) {
 				'" stroke-width="1.2"/>');
 		});
 		output.push("</g>");
+	});
+	(layout.pageNumbers || []).forEach(function(pageNumber) {
+		output.push('<text class="jianpu-page-number" x="' +
+			number(pageNumber.x) + '" y="' + number(pageNumber.y) + '">' +
+			escapeXml(pageNumber.text) + "</text>");
 	});
 
 	output.push("</svg>");

@@ -3,12 +3,16 @@
 var DEFAULT_OPTIONS = {
   staffWidth: 800,
   measuresPerLine: undefined,
-  paddingLeft: 24,
+  paddingLeft: 32,
   paddingRight: 24,
-  paddingTop: 20,
-  paddingBottom: 20,
-  headerHeight: 80,
-  lineHeight: 102,
+  paddingTop: 16,
+  paddingBottom: 16,
+  headerHeight: 68,
+  lineHeight: 107,
+  noteBaselineOffset: 63,
+  linesPerPage: 10,
+  pageFooterHeight: 24,
+  pageNumberFontSize: 13,
   measurePadding: 10,
   eventGap: 10,
   minimumMeasurePadding: 2,
@@ -17,10 +21,10 @@ var DEFAULT_OPTIONS = {
   numberFontSize: 22,
   headerFontSize: 16,
   showTempo: false,
-  titleFontSize: 24,
+  titleFontSize: 35,
   composerFontSize: 14,
   measureNumberFontSize: 20,
-  fingeringFontSize: 11,
+  fingeringFontSize: 14,
   fingeringRadius: 8,
   fingeringGap: 5,
   chordFontSize: 18,
@@ -33,17 +37,48 @@ var DEFAULT_OPTIONS = {
   octaveDotRadius: 2,
   octaveDotGap: 5,
   tieArcHeight: 10,
-  numberTopOffset: 23,
+  numberTopOffset: 21,
   numberBottomOffset: 5,
-  underlineGap: 2,
+  underlineGap: 0,
   underlineSpacing: 4,
   durationDotWidth: 7,
   durationDotRadius: 1.8,
   extensionDashWidth: 16,
   barGap: 14,
+  doubleBarGap: 4,
+  barTopExtra: 3,
+  barBottomExtra: 8,
   thinBarWidth: 1,
   thickBarWidth: 4,
+  tonicMidi: 60,
 };
+
+// Jianpu scale degrees (1-7) are treated as a major scale relative to the
+// tune's tonic; this is an approximation that ignores mode/key-signature
+// nuance but is good enough to derive a clickable pitch per note.
+var SCALE_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+
+var ACCIDENTAL_SEMITONES = {
+  sharp: 1,
+  flat: -1,
+  natural: 0,
+  dblsharp: 2,
+  dblflat: -2,
+};
+
+function noteMidiNumber(note, options) {
+  if (!note.number) return null;
+  var semitone = SCALE_SEMITONES[note.number - 1];
+  var accidental = ACCIDENTAL_SEMITONES[note.accidentalMark] || 0;
+  return options.tonicMidi + semitone + accidental + note.octaveDots * 12;
+}
+
+function eventDurationBeats(marks) {
+  var dotMultiplier = marks.dots === 1 ? 1.5 : marks.dots === 2 ? 1.75 : 1;
+  if (marks.underlines > 0)
+    return dotMultiplier / Math.pow(2, marks.underlines);
+  return (marks.extensionDashes + 1) * dotMultiplier;
+}
 
 var SUPPORTED_BARS = {
   bar_thin: true,
@@ -82,10 +117,14 @@ function accidentalText(accidentalMark) {
 function barWidth(barType, options) {
   switch (barType) {
     case "bar_thin_thin":
-      return options.thinBarWidth * 2 + options.barGap;
+      return (
+        options.thinBarWidth + options.thickBarWidth + options.doubleBarGap
+      );
     case "bar_thin_thick":
     case "bar_thick_thin":
-      return options.thinBarWidth + options.thickBarWidth + options.barGap;
+      return (
+        options.thinBarWidth + options.thickBarWidth + options.doubleBarGap
+      );
     default:
       return options.thinBarWidth;
   }
@@ -303,9 +342,13 @@ function mergeBeamUnderlines(measure, options) {
 }
 
 function positionLine(line, lineIndex, contentWidth, options) {
+  var pageIndex = Math.floor(lineIndex / options.linesPerPage);
   var lineTop =
-    options.paddingTop + options.headerHeight + lineIndex * options.lineHeight;
-  var baselineY = lineTop + options.lineHeight * 0.62;
+    options.paddingTop +
+    options.headerHeight +
+    lineIndex * options.lineHeight +
+    pageIndex * options.pageFooterHeight;
+  var baselineY = lineTop + options.noteBaselineOffset;
   var cursorX = options.paddingLeft;
   var fixedWidth = line.measures.reduce(function (sum, measure) {
     return sum + measure.fixedWidth;
@@ -343,42 +386,58 @@ function positionLine(line, lineIndex, contentWidth, options) {
   line.height = options.lineHeight;
   line.measureNumber = {
     text: String(line.measures[0].index + 1),
-    x: Math.max(4, options.paddingLeft - 16),
+    x: Math.max(4, options.paddingLeft - 28),
     y: lineTop + 9,
   };
-  line.measurePadding = measurePadding;
   line.eventGap = eventGap;
-  line.width =
+  var innerLineWidth =
     fixedWidth +
-    line.measures.length * measurePadding * 2 +
     line.measures.reduce(function (sum, measure) {
       return sum + measure.flexGapCount * eventGap;
     }, 0);
-  // Centre every measure's note group between its left and right boundaries.
-  // Splitting the remaining line width equally across both sides of every
-  // measure avoids leaving a large one-sided gap after a bar line.
-  line.justifyMeasurePadding = line.measures.length
-    ? Math.max(0, contentWidth - line.width) / (line.measures.length * 2)
+  // Give every measure an equal share of the remaining width while keeping
+  // the first musical event at one stable x position on every line.
+  var paddingPerMeasure = line.measures.length
+    ? Math.max(0, contentWidth - innerLineWidth) / line.measures.length
     : 0;
-  measurePadding += line.justifyMeasurePadding;
-  line.measurePadding = measurePadding;
-  line.width += line.justifyMeasurePadding * line.measures.length * 2;
+  var firstLeftPadding = Math.min(
+    options.measurePadding,
+    paddingPerMeasure / 2,
+  );
+  line.measurePadding = firstLeftPadding;
+  line.firstMeasurePadding = firstLeftPadding;
+  line.firstMeasureContentPadding = options.measurePadding;
+  line.paddingPerMeasure = paddingPerMeasure;
+  line.width = innerLineWidth + paddingPerMeasure * line.measures.length;
 
-  line.measures.forEach(function (measure) {
+  line.measures.forEach(function (measure, measureIndex) {
+    var leftPadding =
+      measureIndex === 0 ? firstLeftPadding : paddingPerMeasure / 2;
+    var rightPadding =
+      measureIndex === 0
+        ? paddingPerMeasure - firstLeftPadding
+        : paddingPerMeasure / 2;
     measure.x = cursorX;
     measure.y = lineTop;
+    measure.leftPadding = leftPadding;
+    measure.rightPadding = rightPadding;
     measure.width =
       measure.fixedWidth +
-      measurePadding * 2 +
+      leftPadding +
+      rightPadding +
       measure.flexGapCount * eventGap;
 
+    var contentLeftPadding =
+      measureIndex === 0 ? options.measurePadding : leftPadding;
+    measure.contentLeftPadding = contentLeftPadding;
     var eventX =
-      cursorX + measurePadding + (measure.endingBar ? options.barGap / 2 : 0);
+      cursorX +
+      contentLeftPadding +
+      (measure.endingBar ? options.barGap / 2 : 0);
     measure.events.forEach(function (event) {
       event.x = eventX;
       event.y = baselineY;
-      event.width =
-        event.naturalWidth + event.internalGapCount * eventGap;
+      event.width = event.naturalWidth + event.internalGapCount * eventGap;
       event.notePositions = [];
 
       var notes = event.source.notes;
@@ -417,6 +476,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
           number: note.number,
           octaveDots: note.octaveDots,
           accidentalMark: note.accidentalMark,
+          midi: noteMidiNumber(note, options),
           tieStart: note.tieStart === true,
           tieEnd: note.tieEnd === true,
           accidentalText: accidental,
@@ -431,6 +491,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
       });
 
       event.durationMarks = Object.assign({}, event.source.durationMarks);
+      event.durationBeats = eventDurationBeats(event.durationMarks);
       event.beam = Object.assign(
         { start: false, end: false },
         event.source.beam,
@@ -445,8 +506,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
       });
       var firstFingeringCy =
         highDotTop - options.fingeringGap - options.fingeringRadius;
-      var fingeringTop =
-        firstFingeringCy - options.fingeringRadius;
+      var fingeringTop = firstFingeringCy - options.fingeringRadius;
       var chordBaseY = Math.min(lineTop + 15, fingeringTop - 4);
       event.annotations = {
         chords: (event.source.chordSymbols || []).map(function (chord, index) {
@@ -462,9 +522,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
             return {
               text: fingering,
               cx: eventX + event.noteColumnWidth / 2,
-              cy:
-                firstFingeringCy -
-                index * (options.fingeringRadius * 2 + 3),
+              cy: firstFingeringCy - index * (options.fingeringRadius * 2 + 3),
               r: options.fingeringRadius,
             };
           },
@@ -556,8 +614,9 @@ function positionLine(line, lineIndex, contentWidth, options) {
     if (measure.endingBar) {
       var barX = cursorX + measure.width - measure.endingBar.width;
       measure.endingBar.x = barX;
-      measure.endingBar.y1 = lineTop + 12;
-      measure.endingBar.y2 = lineTop + options.lineHeight - 18;
+      measure.endingBar.y1 =
+        baselineY - options.numberFontSize - options.barTopExtra;
+      measure.endingBar.y2 = baselineY + options.barBottomExtra;
       measure.endingBar.lines = [];
       if (measure.endingBar.type === "bar_thin_thin") {
         measure.endingBar.lines.push(
@@ -569,11 +628,11 @@ function positionLine(line, lineIndex, contentWidth, options) {
             strokeWidth: options.thinBarWidth,
           },
           {
-            x1: barX + options.barGap,
-            x2: barX + options.barGap,
+            x1: barX + options.doubleBarGap,
+            x2: barX + options.doubleBarGap,
             y1: measure.endingBar.y1,
             y2: measure.endingBar.y2,
-            strokeWidth: options.thinBarWidth,
+            strokeWidth: options.thickBarWidth,
           },
         );
       } else if (measure.endingBar.type === "bar_thin_thick") {
@@ -586,8 +645,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
             strokeWidth: options.thinBarWidth,
           },
           {
-            x1: barX + options.barGap,
-            x2: barX + options.barGap,
+            x1: barX + options.doubleBarGap,
+            x2: barX + options.doubleBarGap,
             y1: measure.endingBar.y1,
             y2: measure.endingBar.y2,
             strokeWidth: options.thickBarWidth,
@@ -603,8 +662,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
             strokeWidth: options.thickBarWidth,
           },
           {
-            x1: barX + options.barGap,
-            x2: barX + options.barGap,
+            x1: barX + options.doubleBarGap,
+            x2: barX + options.doubleBarGap,
             y1: measure.endingBar.y1,
             y2: measure.endingBar.y2,
             strokeWidth: options.thinBarWidth,
@@ -630,18 +689,20 @@ function tieSignature(note) {
 }
 
 function tiePath(startX, endX, y, arcHeight) {
-  var middleX = (startX + endX) / 2;
+  var width = endX - startX;
+  var firstControlX = startX + width / 3;
+  var secondControlX = startX + (width * 2) / 3;
   return (
     "M " +
     startX +
     " " +
     y +
     " C " +
-    middleX +
+    firstControlX +
     " " +
     (y - arcHeight) +
     ", " +
-    middleX +
+    secondControlX +
     " " +
     (y - arcHeight) +
     ", " +
@@ -746,6 +807,24 @@ function layoutJianpu(elements, options, measureText) {
     positionLine(line, index, contentWidth, options);
   });
   layoutTies(lines, options, warnings);
+  var totalPages = Math.ceil(lines.length / options.linesPerPage);
+  var pageNumbers = [];
+  if (totalPages > 1) {
+    for (var pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      var lastLineIndex = Math.min(
+        lines.length - 1,
+        (pageIndex + 1) * options.linesPerPage - 1,
+      );
+      pageNumbers.push({
+        text: pageIndex + 1 + " / " + totalPages,
+        x: options.staffWidth - options.paddingRight,
+        y:
+          lines[lastLineIndex].y +
+          options.lineHeight +
+          options.pageFooterHeight * 0.7,
+      });
+    }
+  }
   var infoX = options.paddingLeft;
   var infoY = options.paddingTop + options.headerHeight - 12;
   var keyLabel = options.keyLabel || "";
@@ -771,6 +850,7 @@ function layoutJianpu(elements, options, measureText) {
       options.paddingTop +
       options.headerHeight +
       lines.length * options.lineHeight +
+      (totalPages > 1 ? totalPages * options.pageFooterHeight : 0) +
       options.paddingBottom,
     header: {
       title: options.title || "",
@@ -830,8 +910,10 @@ function layoutJianpu(elements, options, measureText) {
       fingeringFontSize: options.fingeringFontSize,
       chordFontSize: options.chordFontSize,
       dynamicFontSize: options.dynamicFontSize,
+      pageNumberFontSize: options.pageNumberFontSize,
     },
     lines: lines,
+    pageNumbers: pageNumbers,
     warnings: warnings,
   };
 }

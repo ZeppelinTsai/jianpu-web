@@ -1,258 +1,394 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>ABCJS 簡譜 Playground</title>
-	<script src="dist/abcjs-basic.js"></script>
-	<style>
-		* { box-sizing: border-box; }
-		body {
-			margin: 0;
-			padding: 16px;
-			font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-			color: #222;
-			background: #f5f5f5;
-		}
-		h1 { margin: 0 0 12px; font-size: 20px; }
-		.toolbar {
-			display: flex;
-			align-items: center;
-			gap: 10px;
-			margin-bottom: 10px;
-		}
-		select, button { padding: 7px 10px; font: inherit; }
-		button { cursor: pointer; }
-		.workspace {
-			display: grid;
-			grid-template-columns: minmax(300px, 0.8fr) minmax(420px, 1.2fr);
-			gap: 14px;
-			min-height: calc(100vh - 90px);
-		}
-		.panel {
-			min-width: 0;
-			padding: 12px;
-			border: 1px solid #ccc;
-			background: white;
-		}
-		.panel h2 { margin: 0 0 8px; font-size: 15px; }
-		textarea {
-			width: 100%;
-			height: calc(100vh - 160px);
-			min-height: 420px;
-			padding: 10px;
-			border: 1px solid #aaa;
-			resize: vertical;
-			font: 14px/1.5 Consolas, "Courier New", monospace;
-			tab-size: 2;
-		}
-		#preview {
-			min-height: 240px;
-			padding-left: 20px;
-			overflow: auto;
-			border: 1px solid #ddd;
-			background: white;
-		}
-		#messages {
-			margin: 10px 0 0;
-			padding: 10px;
-			white-space: pre-wrap;
-			font: 13px/1.45 Consolas, "Courier New", monospace;
-			color: #7a5200;
-			background: #fff8dc;
-			border: 1px solid #e3ce87;
-		}
-		#messages.ok {
-			color: #35653b;
-			background: #effaf0;
-			border-color: #b9d8bc;
-		}
-		#messages.error {
-			color: #8b1e1e;
-			background: #fff0f0;
-			border-color: #e0aaaa;
-		}
-		@media (max-width: 850px) {
-			.workspace { grid-template-columns: 1fr; }
-			textarea { height: 360px; min-height: 260px; }
-		}
-		@page {
-			size: A4 portrait;
-			margin: 12mm;
-		}
-		@media print {
-			body { padding: 0; background: white; }
-			h1, .toolbar, .input-panel, #messages { display: none !important; }
-			.workspace, .output-panel {
-				display: block;
-				min-height: 0;
-				padding: 0;
-				border: 0;
-			}
-			.output-panel h2 { display: none; }
-			#preview {
-				overflow: visible;
-				min-height: 0;
-				padding-left: 0;
-				border: 0;
-			}
-			#preview svg {
-				display: block;
-				width: 100%;
-				height: auto;
-			}
-			#preview .jianpu-number { font-size: 25px !important; }
-			#preview .jianpu-accidental { font-size: 17.5px !important; }
-			#preview .jianpu-chord { font-size: 20.5px !important; }
-			#preview .jianpu-measure-number { font-size: 23px !important; }
-			#preview .jianpu-dynamic { font-size: 15px !important; }
-			#preview .jianpu-fingering-text { font-size: 12.5px !important; }
-			#preview .jianpu-title { font-size: 27px !important; }
-			#preview .jianpu-composer { font-size: 16px !important; }
-			#preview .jianpu-header { font-size: 18px !important; }
-			#preview .jianpu-meter { font-size: 14px !important; }
-		}
-	</style>
-</head>
-<body>
-	<h1>ABCJS 簡譜 Playground</h1>
-	<div class="toolbar">
-		<label for="mode">輸入模式</label>
-		<select id="mode">
-			<option value="abc">ABC 模式</option>
-			<option value="text">簡譜文字模式</option>
-		</select>
-		<button id="render" type="button">渲染</button>
-		<button id="print" type="button">列印／儲存 PDF</button>
-		<span>ABC 指法範例：<code>"^1"A</code></span>
-	</div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ABCJS 簡譜 Playground</title>
+    <script src="dist/abcjs-basic.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: #222;
+        background: #f5f5f5;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 20px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      select,
+      button {
+        padding: 7px 10px;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(300px, 0.8fr) minmax(420px, 1.2fr);
+        gap: 14px;
+        min-height: calc(100vh - 90px);
+      }
+      .panel {
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid #ccc;
+        background: white;
+      }
+      .panel h2 {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      textarea {
+        width: 100%;
+        height: calc(100vh - 160px);
+        min-height: 420px;
+        padding: 10px;
+        border: 1px solid #aaa;
+        resize: vertical;
+        font:
+          14px/1.5 Consolas,
+          "Courier New",
+          monospace;
+        tab-size: 2;
+      }
+      #preview {
+        min-height: 240px;
+        padding-left: 20px;
+        overflow: auto;
+        border: 1px solid #ddd;
+        background: white;
+      }
+      #messages {
+        margin: 10px 0 0;
+        padding: 10px;
+        white-space: pre-wrap;
+        font:
+          13px/1.45 Consolas,
+          "Courier New",
+          monospace;
+        color: #7a5200;
+        background: #fff8dc;
+        border: 1px solid #e3ce87;
+      }
+      #messages.ok {
+        color: #35653b;
+        background: #effaf0;
+        border-color: #b9d8bc;
+      }
+      #messages.error {
+        color: #8b1e1e;
+        background: #fff0f0;
+        border-color: #e0aaaa;
+      }
+      @media (max-width: 850px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+        textarea {
+          height: 360px;
+          min-height: 260px;
+        }
+      }
+      @page {
+        size: A4 portrait;
+        margin: 12mm;
+      }
+      @media print {
+        body {
+          padding: 0;
+          background: white;
+        }
+        h1,
+        .toolbar,
+        .input-panel,
+        #messages {
+          display: none !important;
+        }
+        .workspace,
+        .output-panel {
+          display: block;
+          min-height: 0;
+          padding: 0;
+          border: 0;
+        }
+        .output-panel h2 {
+          display: none;
+        }
+        #preview {
+          overflow: visible;
+          min-height: 0;
+          padding-left: 0;
+          border: 0;
+        }
+        #preview svg {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+        #preview .jianpu-number {
+          font-size: 25px !important;
+        }
+        #preview .jianpu-accidental {
+          font-size: 17.5px !important;
+        }
+        #preview .jianpu-chord {
+          font-size: 20.5px !important;
+        }
+        #preview .jianpu-measure-number {
+          font-size: 23px !important;
+        }
+        #preview .jianpu-dynamic {
+          font-size: 15px !important;
+        }
+        #preview .jianpu-fingering-text {
+          font-size: 16px !important;
+        }
+        #preview .jianpu-title {
+          font-size: 39px !important;
+        }
+        #preview .jianpu-composer {
+          font-size: 16px !important;
+        }
+        #preview .jianpu-header {
+          font-size: 18px !important;
+        }
+        #preview .jianpu-meter {
+          font-size: 14px !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ABCJS 簡譜 Playground</h1>
+    <div class="toolbar">
+      <label for="mode">輸入模式</label>
+      <select id="mode">
+        <option value="abc">ABC 模式</option>
+        <option value="text">簡譜文字模式</option>
+      </select>
+      <button id="play" type="button">播放</button>
+      <button id="print" type="button">列印／儲存 PDF</button>
+      <span>ABC 指法範例：<code>"^1"A</code></span>
+    </div>
 
-	<main class="workspace">
-		<section class="panel input-panel">
-			<h2>輸入</h2>
-			<textarea id="input" spellcheck="false" aria-label="樂譜輸入"></textarea>
-		</section>
-		<section class="panel output-panel">
-			<h2>簡譜 SVG</h2>
-			<div id="preview"></div>
-			<pre id="messages" class="ok">沒有 warnings</pre>
-		</section>
-	</main>
+    <main class="workspace">
+      <section class="panel input-panel">
+        <h2>輸入</h2>
+        <textarea
+          id="input"
+          spellcheck="false"
+          aria-label="樂譜輸入"
+        ></textarea>
+      </section>
+      <section class="panel output-panel">
+        <h2>簡譜 SVG</h2>
+        <div id="preview"></div>
+        <pre id="messages" class="ok">沒有 warnings</pre>
+      </section>
+    </main>
 
-	<script>
-		(function () {
-			"use strict";
+    <script>
+      (function () {
+        "use strict";
 
-			var examples = {
-				abc: [
-					"X:1",
-					"T:思愁",
-					"C:ZeppelinTsai",
-					"M:4/4",
-					"L:1/8",
-					"K:Amin",
-					"Q:180",
-					"V:1 clef=treble name=\"Melody\"",
-					"[V:1]",
-					"\"Am\"\"^4\"A6\"^1\"D2|\"F\"\"^5\"A4G2A2|\"Dm\"c4B4|\"Em\"\"^2\"G8|",
-					"\"F\"\"^1\"F4\"^2\"E2\"^3\"F2|\"Em\"G4E4|\"G\"D8-|D8|",
-					"\"Am\"\"^4\"A6\"^1\"D2|\"F\"\"^5\"A4G2A2|\"Dm\"c4B4|\"Em\"\"^2\"G8|",
-					"\"F\"\"^1\"F4\"^2\"E2\"^3\"F2|\"C\"G4C4|\"G\"D8-|D8|",
-					"\"F\"\"^5\"d4c4|\"G\"B4G4|\"Am\"ABA6|",
-					"\"C\"\"^1\"c2d2e4|\"F\"g4c4|\"E7\"d8-|d8|",
-					"\"Am\"\"^5\"C4B,4|\"F\"A,4G,4|\"Dm\"F,G,A,6|",
-					"\"C\"\"^1\"C2D2E4|\"Em\"G6CE|\"G\"D8-|D8|",
-					"\"Am\"\"^2\"A2B2c4|\"F\"B4G4|\"Am\"A2B2c4|\"G\"d4B4|",
-					"\"Am\"\"^2\"A2B2c4|\"Em\"B4G4|\"Am\"A8-|A8|"
-				].join("\n"),
-				text: [
-					"T:Octave and Duration Example",
-					"M:4/4",
-					"K:C",
-					"1, 2,, 3 4' | 5'' 6_ 7_ 1- | 2. 3__ 4__ 5- |",
-					"6.. 7__ 1- | 2--- | 0 0 0 0 |]"
-				].join("\n")
-			};
-			var drafts = {
-				abc: examples.abc,
-				text: examples.text
-			};
-			var mode = document.getElementById("mode");
-			var input = document.getElementById("input");
-			var preview = document.getElementById("preview");
-			var messages = document.getElementById("messages");
-			var renderButton = document.getElementById("render");
-			var printButton = document.getElementById("print");
-			var debounceTimer;
-			var playgroundTitle = document.title;
-			var printTitle = playgroundTitle;
+        var examples = {
+          abc: [
+            "X:1",
+            "T:思愁",
+            "C:ZeppelinTsai",
+            "M:4/4",
+            "L:1/8",
+            "K:Amin",
+            "Q:180",
+            'V:1 clef=treble name="Melody"',
+            "[V:1]",
+            '"Am""^4"A6"^1"D2|"F"A4G2A2|"Dm""^5"c4B4|"Em""^2"G8|',
+            '"F""^1"F4"^2"E2"^3"F2|"Em"G4E4|"G"D8-|D8|',
+            '"Am""^4"A6"^1"D2|"F"A4G2A2|"Dm""^5"c4B4|"Em""^2"G8|',
+            '"F""^1"F4"^2"E2"^3"F2|"C"G4C4|"G"D8-|D8|',
+            '"F""^5"d4c4|"G"B4G4|"Am"ABA6|',
+            '"C""^1"c2d2e4|"F"g4c4|"E7"d8-|d8|',
+            '"Am""^5"C4B,4|"F"A,4G,4|"Dm"F,G,A,6|',
+            '"C""^1"C2D2E4|"Em"G6CE|"G"D8-|D8|',
+            '"Am""^2"A2B2c4|"F"B4G4|"Am"A2B2c4|"G"d4B4|',
+            '"Am""^2"A2B2c4|"Em"B4G4|"Am"A8-|A8||',
+          ].join("\n"),
+          text: [
+            "T:Octave and Duration Example",
+            "M:4/4",
+            "K:C",
+            "1, 2,, 3 4' | 5'' 6_ 7_ 1- | 2. 3__ 4__ 5- |",
+            "6.. 7__ 1- | 2--- | 0 0 0 0 |]",
+          ].join("\n"),
+        };
+        var drafts = {
+          abc: examples.abc,
+          text: examples.text,
+        };
+        var mode = document.getElementById("mode");
+        var input = document.getElementById("input");
+        var preview = document.getElementById("preview");
+        var messages = document.getElementById("messages");
+        var playButton = document.getElementById("play");
+        var printButton = document.getElementById("print");
+        var debounceTimer;
+        var playgroundTitle = document.title;
+        var printTitle = playgroundTitle;
+        var lastLayout = null;
+        var SECONDS_PER_BEAT = 60 / 120; // fixed 120bpm preview playback
+        var playTimeouts = [];
 
-			function updatePrintTitle(header) {
-				var parts = [];
-				if (header && header.title) parts.push(header.title.trim());
-				if (header && header.composer) parts.push(header.composer.trim());
-				printTitle = parts.filter(Boolean).join(" - ") || playgroundTitle;
-			}
+        function updatePrintTitle(header) {
+          var parts = [];
+          if (header && header.title) parts.push(header.title.trim());
+          if (header && header.composer) parts.push(header.composer.trim());
+          printTitle = parts.filter(Boolean).join(" - ") || playgroundTitle;
+        }
 
-			function showMessages(warnings) {
-				if (!warnings.length) {
-					messages.className = "ok";
-					messages.textContent = "沒有 warnings";
-					return;
-				}
-				messages.className = "";
-				messages.textContent = warnings.map(function (warning, index) {
-					return (index + 1) + ". " + warning;
-				}).join("\n");
-			}
+        function showMessages(warnings) {
+          if (!warnings.length) {
+            messages.className = "ok";
+            messages.textContent = "沒有 warnings";
+            return;
+          }
+          messages.className = "";
+          messages.textContent = warnings
+            .map(function (warning, index) {
+              return index + 1 + ". " + warning;
+            })
+            .join("\n");
+        }
 
-			function render() {
-				try {
-					var options = { staffWidth: 800 };
-					var result = mode.value === "abc"
-						? ABCJS.jianpu.fromAbc(input.value, options, ABCJS.parseOnly)
-						: ABCJS.jianpu.fromText(input.value, options);
-					preview.innerHTML = result.svg;
-					updatePrintTitle(result.layout && result.layout.header);
-					showMessages(result.warnings);
-				} catch (error) {
-					preview.innerHTML = "";
-					printTitle = playgroundTitle;
-					messages.className = "error";
-					messages.textContent = error.name + ": " + error.message;
-				}
-			}
+        function render() {
+          try {
+            var options = { staffWidth: 800 };
+            var result =
+              mode.value === "abc"
+                ? ABCJS.jianpu.fromAbc(input.value, options, ABCJS.parseOnly)
+                : ABCJS.jianpu.fromText(input.value, options);
+            preview.innerHTML = result.svg;
+            updatePrintTitle(result.layout && result.layout.header);
+            showMessages(result.warnings);
+            lastLayout = result.layout;
+          } catch (error) {
+            preview.innerHTML = "";
+            printTitle = playgroundTitle;
+            messages.className = "error";
+            messages.textContent = error.name + ": " + error.message;
+          }
+        }
 
-			function scheduleRender() {
-				clearTimeout(debounceTimer);
-				debounceTimer = setTimeout(render, 220);
-			}
+        function stopPlayback() {
+          playTimeouts.forEach(clearTimeout);
+          playTimeouts = [];
+          playButton.textContent = "播放";
+        }
 
-			mode.addEventListener("change", function () {
-				var previousMode = mode.value === "abc" ? "text" : "abc";
-				drafts[previousMode] = input.value;
-				input.value = drafts[mode.value];
-				render();
-			});
-			input.addEventListener("input", function () {
-				drafts[mode.value] = input.value;
-				scheduleRender();
-			});
-			renderButton.addEventListener("click", render);
-			printButton.addEventListener("click", function () {
-				render();
-				window.print();
-			});
-			window.addEventListener("beforeprint", function () {
-				document.title = printTitle;
-			});
-			window.addEventListener("afterprint", function () {
-				document.title = playgroundTitle;
-			});
+        function collectPlayableEvents(layout) {
+          var events = [];
+          layout.lines.forEach(function (line) {
+            line.measures.forEach(function (measure) {
+              measure.events.forEach(function (event) {
+                events.push(event);
+              });
+            });
+          });
+          return events;
+        }
 
-			input.value = drafts.abc;
-			render();
-		}());
-	</script>
-</body>
+        function playTune() {
+          if (!lastLayout) return;
+          stopPlayback();
+          var offsetMs = 0;
+          collectPlayableEvents(lastLayout).forEach(function (event) {
+            var durationSeconds = (event.durationBeats || 1) * SECONDS_PER_BEAT;
+            var midiNumbers = event.notePositions
+              .map(function (note) {
+                return note.midi;
+              })
+              .filter(function (midi) {
+                return typeof midi === "number";
+              });
+            if (midiNumbers.length) {
+              playTimeouts.push(
+                setTimeout(function () {
+                  midiNumbers.forEach(function (midi) {
+                    ABCJS.jianpu.pianoPlayer.playNote(midi, durationSeconds);
+                  });
+                }, offsetMs),
+              );
+            }
+            offsetMs += durationSeconds * 1000;
+          });
+          playTimeouts.push(setTimeout(stopPlayback, offsetMs));
+          playButton.textContent = "停止";
+        }
+
+        function scheduleRender() {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(render, 220);
+        }
+
+        mode.addEventListener("change", function () {
+          var previousMode = mode.value === "abc" ? "text" : "abc";
+          drafts[previousMode] = input.value;
+          input.value = drafts[mode.value];
+          render();
+        });
+        input.addEventListener("input", function () {
+          drafts[mode.value] = input.value;
+          scheduleRender();
+        });
+        preview.addEventListener("click", function (event) {
+          var noteEl = event.target.closest(".jianpu-note");
+          if (!noteEl) return;
+          var midi = Number(noteEl.getAttribute("data-midi"));
+          if (!isFinite(midi)) return;
+          var eventEl = noteEl.closest(".jianpu-event");
+          var beats = eventEl
+            ? Number(eventEl.getAttribute("data-duration-beats"))
+            : 1;
+          ABCJS.jianpu.pianoPlayer.playNote(
+            midi,
+            (isFinite(beats) ? beats : 1) * SECONDS_PER_BEAT,
+          );
+        });
+        playButton.addEventListener("click", function () {
+          if (playButton.textContent === "停止") stopPlayback();
+          else playTune();
+        });
+        printButton.addEventListener("click", function () {
+          render();
+          window.print();
+        });
+        window.addEventListener("beforeprint", function () {
+          document.title = printTitle;
+        });
+        window.addEventListener("afterprint", function () {
+          document.title = playgroundTitle;
+        });
+
+        ABCJS.jianpu.pianoPlayer.loadSamples("src/jianpu/piano-samples/");
+
+        input.value = drafts.abc;
+        render();
+      })();
+    </script>
+  </body>
 </html>

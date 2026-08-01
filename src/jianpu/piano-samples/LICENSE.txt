@@ -1,0 +1,11 @@
+Salamander Grand Piano V3 MP3 samples (velocity layer 10)
+Author: Alexander Holm
+Source: https://archive.org/details/SalamanderGrandPianoV3
+License: CC BY 3.0 (Attribution) - https://creativecommons.org/licenses/by/3.0/
+
+You must credit "Alexander Holm" when using these samples in your product
+(e.g. in an About/Credits page): 
+"Piano samples: Salamander Grand Piano by Alexander Holm, CC BY 3.0"
+
+Repackaged as MP3 npm module by Jan Forst (darosh):
+https://github.com/darosh/samples-piano-mp3

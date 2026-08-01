@@ -1,4 +1,5 @@
-Copyright (c) 2009-2024 Paul Rosen and Gregory Dyke
+Copyright (c) 2009-2024 Paul Rosen and Gregory Dyke (abcjs)
+Copyright (c) 2026 ZeppelinTsai (jianpu module and additions)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

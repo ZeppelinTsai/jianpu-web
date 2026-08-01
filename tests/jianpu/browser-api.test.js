@@ -73,7 +73,7 @@ assert.match(fingeringResult.svg, /class="jianpu-fingering-circle"/);
 assert.match(fingeringResult.svg, /class="jianpu-fingering-text"[^>]*>1<\/text>/);
 
 var playground = fs.readFileSync(
-	path.resolve(__dirname, "../../jianpu-playground.html"),
+	path.resolve(__dirname, "../../index.html"),
 	"utf8"
 );
 assert.match(playground, /列印／儲存 PDF/);

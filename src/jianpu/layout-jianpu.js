@@ -8,7 +8,12 @@ var DEFAULT_OPTIONS = {
   paddingTop: 16,
   paddingBottom: 16,
   headerHeight: 68,
-  lineHeight: 107,
+  // A short note (2-3 underlines) with a low octave dot and a lyric
+  // syllable can put the lyric's visual bottom right around 107-115 units
+  // below lineTop (verified empirically) — 130 keeps a safe margin above
+  // the next line's chord-symbol row in that worst case without being
+  // wasteful for ordinary content.
+  lineHeight: 130,
   noteBaselineOffset: 63,
   linesPerPage: 10,
   pageFooterHeight: 24,

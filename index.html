@@ -451,6 +451,9 @@
         size: A4 portrait;
         margin: 12mm;
       }
+      #print-preview {
+        display: none;
+      }
       @media print {
         body {
           padding: 0;
@@ -476,45 +479,63 @@
         .panel-body.collapsed {
           display: block;
         }
+        /* The single combined preview SVG is replaced for print by
+           #print-preview: one <svg> slice per notated line (built in JS
+           from the layout's own line.y/line.height, which the browser's
+           print engine has no notion of), each wrapped in a block with
+           break-inside:avoid so a line can never be sliced across a page —
+           if it doesn't fit in what's left of the current page, the whole
+           line moves to the next one instead. */
         #preview {
-          overflow: visible;
-          min-height: 0;
-          padding-left: 0;
-          border: 0;
+          display: none;
         }
-        #preview svg {
+        #print-preview {
+          display: block;
+          overflow: visible;
+        }
+        .print-row {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+        .print-row svg {
           display: block;
           width: 100%;
           height: auto;
         }
-        #preview .jianpu-number {
+        #print-preview .jianpu-page-number {
+          display: none;
+        }
+        #print-preview .jianpu-number {
           font-size: 25px !important;
         }
-        #preview .jianpu-accidental {
+        #print-preview .jianpu-accidental {
           font-size: 17.5px !important;
         }
-        #preview .jianpu-chord {
+        #print-preview .jianpu-chord {
           font-size: 20.5px !important;
         }
-        #preview .jianpu-measure-number {
+        #print-preview .jianpu-measure-number {
           font-size: 23px !important;
         }
-        #preview .jianpu-dynamic {
+        #print-preview .jianpu-dynamic {
           font-size: 15px !important;
         }
-        #preview .jianpu-fingering-text {
+        #print-preview .jianpu-fingering-text {
           font-size: 16px !important;
         }
-        #preview .jianpu-title {
+        #print-preview .jianpu-lyric {
+          font-size: 16px !important;
+        }
+        #print-preview .jianpu-title {
           font-size: 39px !important;
         }
-        #preview .jianpu-composer {
+        #print-preview .jianpu-composer {
           font-size: 16px !important;
         }
-        #preview .jianpu-header {
+        #print-preview .jianpu-header {
           font-size: 18px !important;
         }
-        #preview .jianpu-meter {
+        #print-preview .jianpu-meter {
           font-size: 14px !important;
         }
       }
@@ -1031,6 +1052,7 @@
         </h2>
         <div class="panel-body" id="output-body">
           <div id="preview"></div>
+          <div id="print-preview" aria-hidden="true"></div>
           <pre id="messages" class="ok">沒有 warnings</pre>
         </div>
       </section>
@@ -1080,6 +1102,7 @@
         var mode = document.getElementById("mode");
         var input = document.getElementById("input");
         var preview = document.getElementById("preview");
+        var printPreview = document.getElementById("print-preview");
         var messages = document.getElementById("messages");
         var playButton = document.getElementById("play");
         var playIcon = playButton.querySelector(".bi");
@@ -1298,6 +1321,46 @@
             messages.textContent = error.name + ": " + error.message;
           }
           saveState();
+        }
+
+        // The browser's print pagination has no idea where one notated
+        // line ends and the next begins — left alone, a page break can
+        // land in the middle of a line's row of measures. This rebuilds
+        // the preview as one <svg> slice per line (using the layout's own
+        // line.y/line.height to crop each slice via viewBox, and a leading
+        // slice for everything above the first line: title/composer/key/
+        // meter), each wrapped in a block with break-inside:avoid — the
+        // print engine can then only ever break *between* slices, never
+        // inside one, so a line either fits whole on the current page or
+        // moves entirely to the next.
+        function buildPrintPreview() {
+          printPreview.innerHTML = "";
+          if (!lastLayout) return;
+          var sourceSvg = preview.querySelector("svg");
+          if (!sourceSvg) return;
+
+          var bands = [];
+          var headerBottom = lastLayout.lines.length
+            ? lastLayout.lines[0].y
+            : lastLayout.height;
+          if (headerBottom > 0) bands.push({ y: 0, height: headerBottom });
+          lastLayout.lines.forEach(function (line) {
+            bands.push({ y: line.y, height: line.height });
+          });
+
+          bands.forEach(function (band) {
+            var clone = sourceSvg.cloneNode(true);
+            clone.setAttribute(
+              "viewBox",
+              "0 " + band.y + " " + lastLayout.width + " " + band.height,
+            );
+            clone.setAttribute("width", lastLayout.width);
+            clone.setAttribute("height", band.height);
+            var row = document.createElement("div");
+            row.className = "print-row";
+            row.appendChild(clone);
+            printPreview.appendChild(row);
+          });
         }
 
         function setPlayingUI(isPlaying) {
@@ -1925,6 +1988,7 @@
         });
         printButton.addEventListener("click", function () {
           render();
+          buildPrintPreview();
           window.print();
         });
         shareButton.addEventListener("click", function () {
@@ -1947,9 +2011,11 @@
         exportWavButton.addEventListener("click", exportWav);
         window.addEventListener("beforeprint", function () {
           document.title = printTitle;
+          buildPrintPreview();
         });
         window.addEventListener("afterprint", function () {
           document.title = playgroundTitle;
+          printPreview.innerHTML = "";
         });
 
         ABCJS.jianpu.instrumentPlayer.loadSamples("piano");

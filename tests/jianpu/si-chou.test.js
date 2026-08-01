@@ -38,7 +38,7 @@ assert.strictEqual((result.svg.match(/class="jianpu-number"/g) || []).length, 76
 assert.strictEqual((result.svg.match(/class="jianpu-chord"/g) || []).length, 33);
 assert.strictEqual((result.svg.match(/class="jianpu-dynamic"/g) || []).length, 5);
 assert.strictEqual((result.svg.match(/class="jianpu-meter-line"/g) || []).length, 1);
-assert.ok(result.layout.height <= 1170);
+assert.ok(result.layout.height <= 1450);
 assert.strictEqual(events.filter(function(event) {
 	return event.notes.some(function(note) { return note.tieStart; });
 }).length, 5);

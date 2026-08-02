@@ -207,7 +207,12 @@ function convertAbcTune(tune, rawAbc) {
 				}
 				playableNoteCount = 0;
 				converter.resetBar();
-				elements.push({ type: "bar", barType: element.type });
+				elements.push({
+					type: "bar",
+					barType: element.type,
+					startEnding: element.startEnding || null,
+					endEnding: element.endEnding === true,
+				});
 			} else if (element.el_type === "note") {
 				if (element.rest === undefined)
 					playableNoteCount++;

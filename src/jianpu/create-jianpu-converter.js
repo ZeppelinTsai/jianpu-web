@@ -116,6 +116,10 @@ function durationMarks(representation) {
   };
 }
 
+function warnOnce(context, message) {
+  if (context.warnings.indexOf(message) === -1) context.warnings.push(message);
+}
+
 /**
  * Create a stateful converter from ABCJS Tune AST notes to jianpu events.
  *
@@ -152,6 +156,8 @@ function createJianpuConverter(initialKey) {
     measureAccidentals: new Map(),
     warnings: [],
     instrument: "piano",
+    activeTuplet: null,
+    tupletCounter: 0,
   };
 
   function setKey(key) {
@@ -162,6 +168,12 @@ function createJianpuConverter(initialKey) {
 
   function resetBar() {
     context.measureAccidentals.clear();
+    if (context.activeTuplet) {
+      context.warnings.push(
+        "A tuplet marking spans a bar line, which is not fully supported; " +
+          "the tuplet bracket may be drawn incorrectly."
+      );
+    }
   }
 
   function setInstrument(instrument) {
@@ -216,20 +228,33 @@ function createJianpuConverter(initialKey) {
     };
     if (pitch.startTie) convertedPitch.tieStart = true;
     if (pitch.endTie) convertedPitch.tieEnd = true;
+    if (Array.isArray(pitch.startSlur) && pitch.startSlur.length) {
+      convertedPitch.slurStart = pitch.startSlur.map(function (slur) {
+        return slur && typeof slur === "object" ? slur.label : slur;
+      });
+    }
+    if (Array.isArray(pitch.endSlur) && pitch.endSlur.length) {
+      convertedPitch.slurEnd = pitch.endSlur.map(function (slur) {
+        return slur && typeof slur === "object" ? slur.label : slur;
+      });
+    }
     return convertedPitch;
   }
 
-  function restEvent(marks) {
-    return {
+  function restEvent(marks, tuplet, durationScale) {
+    var event = {
       notes: [{ number: 0, octaveDots: 0, accidentalMark: null }],
       durationMarks: marks,
       instrument: context.instrument,
     };
+    if (tuplet) event.tuplet = tuplet;
+    if (durationScale && durationScale !== 1) event.durationScale = durationScale;
+    return event;
   }
 
-  function convertRest(representation) {
+  function convertRest(representation, tuplet, durationScale) {
     if (representation.extensionDashes === 0)
-      return [restEvent(durationMarks(representation))];
+      return [restEvent(durationMarks(representation), tuplet, durationScale)];
 
     var count = representation.extensionDashes + 1;
     var marks = {
@@ -238,21 +263,102 @@ function createJianpuConverter(initialKey) {
       dots: representation.dots,
     };
     var events = [];
-    for (var i = 0; i < count; i++) events.push(restEvent(marks));
+    for (var i = 0; i < count; i++)
+      events.push(restEvent(marks, tuplet, durationScale));
     return events;
+  }
+
+  // Resolve a note's duration marks (underlines/dashes/dots), taking any
+  // active tuplet into account. abcjs keeps note.duration at the *written*
+  // (unscaled) value for tuplet members and exposes the sounding ratio
+  // separately via startTriplet/tripletMultiplier/endTriplet (only the
+  // first note of a group carries startTriplet/tripletMultiplier; the
+  // group's other members must be tracked statefully, mirroring how
+  // abc_midi_sequencer.js derives sounding durations for playback).
+  //
+  // We first try the actual sounding duration (written * multiplier) so
+  // ratios that happen to land on a representable jianpu value (e.g. a
+  // duplet's 3:2 multiplier, which matches the existing dotted-note
+  // multiplier) render exactly. When that does not resolve to a
+  // representable duration (the common case for a plain 3-against-2
+  // triplet, which jianpu's underline/dot vocabulary cannot express on its
+  // own), we fall back to the note's written value plus a tuplet bracket
+  // and a warning, rather than silently rendering it as an unmarked plain
+  // note (the original bug).
+  function resolveTupletDuration(note) {
+    var startedTupletHere = false;
+    if (note.startTriplet) {
+      if (context.activeTuplet) {
+        context.warnings.push(
+          "Nested tuplet starting near duration " + note.duration +
+            " was ignored; only one tuplet level is supported at a time."
+        );
+      } else {
+        context.tupletCounter++;
+        context.activeTuplet = {
+          ratio: note.startTriplet,
+          multiplier: Number(note.tripletMultiplier) || 1,
+          id: context.tupletCounter,
+        };
+        startedTupletHere = true;
+      }
+    }
+
+    var activeTuplet = context.activeTuplet;
+    var endsTupletHere = activeTuplet !== null && note.endTriplet === true;
+    var nominalDuration = Number(note.duration);
+    var representation;
+    var durationScale = 1;
+    var tuplet = null;
+
+    if (activeTuplet) {
+      var soundingDuration = nominalDuration * activeTuplet.multiplier;
+      representation = findDurationRepresentation(soundingDuration);
+      if (!representation) {
+        representation = findDurationRepresentation(nominalDuration);
+        if (representation) {
+          durationScale = activeTuplet.multiplier;
+          warnOnce(
+            context,
+            "Tuplet ratio " + activeTuplet.ratio + " does not resolve to a " +
+              "representable jianpu duration; affected notes are shown at " +
+              "their written value with a " + activeTuplet.ratio +
+              "-bracket, so the exact sounding rhythm is approximate."
+          );
+        }
+      }
+      tuplet = {
+        id: activeTuplet.id,
+        ratio: activeTuplet.ratio,
+        isStart: startedTupletHere,
+        isEnd: endsTupletHere,
+      };
+    } else {
+      representation = findDurationRepresentation(nominalDuration);
+    }
+
+    if (endsTupletHere) context.activeTuplet = null;
+
+    return {
+      representation: representation,
+      tuplet: tuplet,
+      durationScale: durationScale,
+    };
   }
 
   function convertNote(note) {
     if (!note || note.el_type !== "note")
       throw new TypeError("convertNote expects an ABCJS note element.");
 
-    var representation = findDurationRepresentation(Number(note.duration));
+    var resolved = resolveTupletDuration(note);
+    var representation = resolved.representation;
     if (!representation) {
       context.warnings.push("Unsupported duration: " + note.duration);
       return [];
     }
 
-    if (note.rest) return convertRest(representation);
+    if (note.rest)
+      return convertRest(representation, resolved.tuplet, resolved.durationScale);
 
     if (!Array.isArray(note.pitches) || note.pitches.length === 0) {
       context.warnings.push("A non-rest note has no pitches.");
@@ -271,6 +377,23 @@ function createJianpuConverter(initialKey) {
       // syllable to render.
       lyric: note.lyric && note.lyric[0] ? note.lyric[0].syllable : null,
     };
+    if (resolved.tuplet) event.tuplet = resolved.tuplet;
+    if (resolved.durationScale !== 1) event.durationScale = resolved.durationScale;
+    if (Array.isArray(note.gracenotes) && note.gracenotes.length) {
+      event.graceNotes = note.gracenotes.map(function (gracePitch) {
+        var converted = convertPitch(gracePitch);
+        return {
+          number: converted.number,
+          octaveDots: converted.octaveDots,
+          accidentalMark: converted.accidentalMark,
+        };
+      });
+      warnOnce(
+        context,
+        "Grace notes are rendered as simplified small notes (approximate " +
+          "spacing, no individual duration marks) before their main note."
+      );
+    }
     if (note.chord) {
       event.chordSymbols = note.chord
         .filter(function (chord) {
@@ -298,8 +421,21 @@ function createJianpuConverter(initialKey) {
         });
     }
     if (note.decoration) {
-      event.dynamics = note.decoration.filter(function (decoration) {
+      var isDynamic = function (decoration) {
         return /^(pppp|ppp|pp|p|mp|mf|f|ff|fff|ffff)$/.test(decoration);
+      };
+      event.dynamics = note.decoration.filter(isDynamic);
+      note.decoration.forEach(function (decoration) {
+        if (isDynamic(decoration)) return;
+        if (decoration === "staccato") {
+          event.staccato = true;
+          return;
+        }
+        warnOnce(
+          context,
+          "Decoration '" + decoration +
+            "' is not yet supported and was not rendered."
+        );
       });
     }
     if (note.startBeam || note.endBeam) {

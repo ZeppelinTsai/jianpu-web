@@ -58,6 +58,23 @@ var DEFAULT_OPTIONS = {
   thinBarWidth: 1,
   thickBarWidth: 4,
   tonicMidi: 60,
+  repeatDotRadius: 2,
+  repeatDotGap: 5,
+  repeatDotSpacing: 7,
+  voltaGap: 6,
+  voltaTickHeight: 8,
+  voltaFontSize: 13,
+  tupletGap: 6,
+  tupletTickHeight: 4,
+  tupletFontSize: 13,
+  graceNoteWidth: 12,
+  graceNoteGap: 4,
+  graceNoteFontSize: 13,
+  graceNoteRaise: 4,
+  slurExtraRaise: 6,
+  slurExtraArc: 6,
+  staccatoDotRadius: 1.6,
+  staccatoGap: 5,
 };
 
 // Jianpu scale degrees (1-7) are treated as a major scale relative to the
@@ -92,6 +109,9 @@ var SUPPORTED_BARS = {
   bar_thin_thin: true,
   bar_thin_thick: true,
   bar_thick_thin: true,
+  bar_left_repeat: true,
+  bar_right_repeat: true,
+  bar_dbl_repeat: true,
 };
 
 function mergeOptions(options) {
@@ -132,9 +152,82 @@ function barWidth(barType, options) {
       return (
         options.thinBarWidth + options.thickBarWidth + options.doubleBarGap
       );
+    // Standard repeat-bar geometry (matches staff notation convention): a
+    // thin+thick bar pair plus two dots on the side facing the repeated
+    // section. bar_left_repeat ("|:") opens toward the right (dots after
+    // the bars); bar_right_repeat (":|") opens toward the left (dots
+    // before the bars); bar_dbl_repeat ("::", simultaneously closing one
+    // repeated section and opening the next) has dots on both sides.
+    case "bar_left_repeat":
+    case "bar_right_repeat":
+      return (
+        options.doubleBarGap +
+        options.repeatDotGap +
+        options.repeatDotRadius * 2
+      );
+    case "bar_dbl_repeat":
+      return (
+        options.repeatDotRadius * 4 +
+        options.repeatDotGap * 2 +
+        options.doubleBarGap * 2
+      );
     default:
       return options.thinBarWidth;
   }
+}
+
+// Builds the line/dot geometry for a repeat-type bar (see barWidth above for
+// the same left-to-right ordering, kept in sync with this function so the
+// reserved width always matches what actually gets drawn).
+function repeatBarGeometry(type, barX, y1, y2, options) {
+  var lines = [];
+  var dots = [];
+
+  function addLine(x, strokeWidth) {
+    lines.push({ x1: x, x2: x, y1: y1, y2: y2, strokeWidth: strokeWidth });
+  }
+
+  function addDots(cx) {
+    var midY = (y1 + y2) / 2;
+    dots.push(
+      {
+        cx: cx,
+        cy: midY - options.repeatDotSpacing / 2,
+        r: options.repeatDotRadius,
+      },
+      {
+        cx: cx,
+        cy: midY + options.repeatDotSpacing / 2,
+        r: options.repeatDotRadius,
+      },
+    );
+  }
+
+  if (type === "bar_left_repeat") {
+    var leftThinX = barX + options.doubleBarGap;
+    addLine(barX, options.thickBarWidth);
+    addLine(leftThinX, options.thinBarWidth);
+    addDots(leftThinX + options.repeatDotGap + options.repeatDotRadius);
+  } else if (type === "bar_right_repeat") {
+    var dotCx = barX + options.repeatDotRadius;
+    var thinX = dotCx + options.repeatDotRadius + options.repeatDotGap;
+    addDots(dotCx);
+    addLine(thinX, options.thinBarWidth);
+    addLine(thinX + options.doubleBarGap, options.thickBarWidth);
+  } else if (type === "bar_dbl_repeat") {
+    var leftDotCx = barX + options.repeatDotRadius;
+    var leftThin = leftDotCx + options.repeatDotRadius + options.repeatDotGap;
+    var thick = leftThin + options.doubleBarGap;
+    var rightThin = thick + options.doubleBarGap;
+    var rightDotCx = rightThin + options.repeatDotGap + options.repeatDotRadius;
+    addDots(leftDotCx);
+    addLine(leftThin, options.thinBarWidth);
+    addLine(thick, options.thickBarWidth);
+    addLine(rightThin, options.thinBarWidth);
+    addDots(rightDotCx);
+  }
+
+  return { lines: lines, dots: dots };
 }
 
 function measureEvent(event, options, measureText) {
@@ -164,13 +257,17 @@ function measureEvent(event, options, measureText) {
       measureText(chord, { fontSize: options.chordFontSize }),
     );
   });
+  var graceWidth = (event.graceNotes || []).length
+    ? event.graceNotes.length * options.graceNoteWidth + options.graceNoteGap
+    : 0;
 
   return {
     source: event,
-    naturalWidth: Math.max(widestNote + rightWidth, chordWidth),
+    naturalWidth: Math.max(widestNote + rightWidth, chordWidth) + graceWidth,
     noteColumnWidth: widestNote,
     rightWidth: rightWidth,
     internalGapCount: marks.extensionDashes,
+    graceWidth: graceWidth,
   };
 }
 
@@ -209,6 +306,8 @@ function groupMeasures(elements, options, measureText, warnings) {
         sourceType: requestedType,
         type: renderedType,
         width: barWidth(renderedType, options),
+        startEnding: element.startEnding || null,
+        endEnding: element.endEnding === true,
       };
       measures.push(current);
       current = createMeasure(measures.length);
@@ -348,7 +447,71 @@ function mergeBeamUnderlines(measure, options) {
   finishGroup();
 }
 
-function positionLine(line, lineIndex, contentWidth, options) {
+function tupletTopY(event, options) {
+  return event.notePositions.reduce(function (top, note) {
+    return Math.min(top, tieAnchorY(note, options));
+  }, Infinity);
+}
+
+// Groups consecutive events sharing a tuplet id (see event.tuplet, set from
+// create-jianpu-converter's startTriplet/endTriplet tracking) and lays out a
+// bracket + ratio number spanning the group, mirroring mergeBeamUnderlines'
+// approach to beam grouping. A tuplet whose start/end don't both land inside
+// this measure (e.g. it spans a bar line) is intentionally left unbracketed
+// here — create-jianpu-converter's resetBar() already pushes a warning for
+// that case — rather than drawing a bracket that doesn't actually match the
+// source.
+function mergeTupletBrackets(measure, options, warnings) {
+  measure.tupletBrackets = [];
+  var activeGroup = [];
+
+  function finishGroup() {
+    if (!activeGroup.length) return;
+    var last = activeGroup[activeGroup.length - 1];
+    if (!last.tuplet.isEnd) {
+      warnings.push(
+        "Tuplet " + activeGroup[0].tuplet.ratio + " in measure " +
+          (measure.index + 1) +
+          " has no matching end within the measure; bracket was not drawn."
+      );
+    } else if (activeGroup.length >= 2) {
+      var first = activeGroup[0];
+      var y =
+        activeGroup.reduce(function (top, event) {
+          return Math.min(top, tupletTopY(event, options));
+        }, Infinity) - options.tupletGap;
+      var x1 = first.x;
+      var x2 = last.x + last.noteColumnWidth;
+      measure.tupletBrackets.push({
+        x1: x1,
+        x2: x2,
+        y: y,
+        tickHeight: options.tupletTickHeight,
+        label: String(first.tuplet.ratio),
+        labelX: (x1 + x2) / 2,
+        labelY: y - 3,
+      });
+    }
+    activeGroup = [];
+  }
+
+  measure.events.forEach(function (event) {
+    if (!event.tuplet) {
+      finishGroup();
+      return;
+    }
+    if (event.tuplet.isStart) {
+      finishGroup();
+      activeGroup = [event];
+    } else if (activeGroup.length) {
+      activeGroup.push(event);
+    }
+    if (activeGroup.length && event.tuplet.isEnd) finishGroup();
+  });
+  finishGroup();
+}
+
+function positionLine(line, lineIndex, contentWidth, options, warnings) {
   var pageIndex = Math.floor(lineIndex / options.linesPerPage);
   var lineTop =
     options.paddingTop +
@@ -442,14 +605,16 @@ function positionLine(line, lineIndex, contentWidth, options) {
       contentLeftPadding +
       (measure.endingBar ? options.barGap / 2 : 0);
     measure.events.forEach(function (event) {
-      event.x = eventX;
+      var noteStartX = eventX + (event.graceWidth || 0);
+      event.x = noteStartX;
+      event.graceStartX = eventX;
       event.y = baselineY;
       event.width = event.naturalWidth + event.internalGapCount * eventGap;
       event.notePositions = [];
 
       var notes = event.source.notes;
       notes.forEach(function (note, noteIndex) {
-        var noteX = eventX + event.noteColumnWidth / 2;
+        var noteX = noteStartX + event.noteColumnWidth / 2;
         var noteY = baselineY - noteIndex * options.chordNoteGap;
         var octaveDotPositions = [];
         var octaveDotCount = Math.abs(note.octaveDots);
@@ -486,6 +651,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
           midi: noteMidiNumber(note, options),
           tieStart: note.tieStart === true,
           tieEnd: note.tieEnd === true,
+          slurStart: note.slurStart || null,
+          slurEnd: note.slurEnd || null,
           accidentalText: accidental,
           accidentalPosition: accidental
             ? {
@@ -498,11 +665,14 @@ function positionLine(line, lineIndex, contentWidth, options) {
       });
 
       event.durationMarks = Object.assign({}, event.source.durationMarks);
-      event.durationBeats = eventDurationBeats(event.durationMarks);
+      event.durationBeats =
+        eventDurationBeats(event.durationMarks) *
+        (event.source.durationScale || 1);
       event.beam = Object.assign(
         { start: false, end: false },
         event.source.beam,
       );
+      event.tuplet = event.source.tuplet || null;
       event.instrument = event.source.instrument || "piano";
       event.lyric =
         event.source.lyric !== undefined ? event.source.lyric : null;
@@ -514,15 +684,20 @@ function positionLine(line, lineIndex, contentWidth, options) {
             highDotTop = Math.min(highDotTop, dot.cy - dot.r);
         });
       });
+      var hasStaccato = event.source.staccato === true;
+      var staccatoY = highDotTop - options.staccatoGap;
+      var fingeringCeiling = hasStaccato
+        ? staccatoY - options.staccatoGap
+        : highDotTop;
       var firstFingeringCy =
-        highDotTop - options.fingeringGap - options.fingeringRadius;
+        fingeringCeiling - options.fingeringGap - options.fingeringRadius;
       var fingeringTop = firstFingeringCy - options.fingeringRadius;
       var chordBaseY = Math.min(lineTop + 15, fingeringTop - 4);
       event.annotations = {
         chords: (event.source.chordSymbols || []).map(function (chord, index) {
           return {
             text: chord,
-            x: eventX + event.noteColumnWidth / 2,
+            x: noteStartX + event.noteColumnWidth / 2,
             y: chordBaseY - index * (options.chordFontSize + 2),
           };
         }),
@@ -531,12 +706,39 @@ function positionLine(line, lineIndex, contentWidth, options) {
           function (fingering, index) {
             return {
               text: fingering,
-              cx: eventX + event.noteColumnWidth / 2,
+              cx: noteStartX + event.noteColumnWidth / 2,
               cy: firstFingeringCy - index * (options.fingeringRadius * 2 + 3),
               r: options.fingeringRadius,
             };
           },
         ),
+        // Grace notes are a best-effort visual: small numbers packed
+        // left-to-right immediately before the main note, without their own
+        // duration marks or precise beat-accurate spacing (see the warning
+        // create-jianpu-converter pushes when note.gracenotes is present).
+        graceNotes: (event.source.graceNotes || []).map(function (grace, index) {
+          var gx = event.graceStartX + options.graceNoteWidth * (index + 0.5);
+          var accidental = accidentalText(grace.accidentalMark);
+          return {
+            x: gx,
+            y: baselineY - options.graceNoteRaise,
+            number: grace.number,
+            accidentalText: accidental,
+            accidentalPosition: accidental
+              ? {
+                  x: gx - options.graceNoteWidth / 2,
+                  y: baselineY - options.graceNoteRaise - options.accidentalRaise * 0.6,
+                }
+              : null,
+          };
+        }),
+        staccato: hasStaccato
+          ? {
+              cx: noteStartX + event.noteColumnWidth / 2,
+              cy: staccatoY,
+              r: options.staccatoDotRadius,
+            }
+          : null,
       };
       var lowestNote = event.notePositions[0];
       var underlineStartY =
@@ -555,15 +757,15 @@ function positionLine(line, lineIndex, contentWidth, options) {
         var underlineY =
           underlineStartY + underlineIndex * options.underlineSpacing;
         event.durationLayout.underlines.push({
-          x1: eventX,
-          x2: eventX + event.noteColumnWidth,
+          x1: noteStartX,
+          x2: noteStartX + event.noteColumnWidth,
           y1: underlineY,
           y2: underlineY,
           strokeWidth: 1.4,
         });
       }
 
-      var rightCursor = eventX + event.noteColumnWidth;
+      var rightCursor = noteStartX + event.noteColumnWidth;
       for (
         var dashIndex = 0;
         dashIndex < event.durationMarks.extensionDashes;
@@ -611,7 +813,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         });
         event.annotations.dynamics.push({
           text: dynamic,
-          x: eventX + event.noteColumnWidth / 2,
+          x: noteStartX + event.noteColumnWidth / 2,
           y: lowestVisualY + 14 + index * (options.dynamicFontSize + 2),
         });
       });
@@ -643,7 +845,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         }
         event.annotations.lyric = {
           text: event.lyric,
-          x: eventX + event.noteColumnWidth / 2,
+          x: noteStartX + event.noteColumnWidth / 2,
           y: lyricBaseY + options.lyricGap + options.lyricFontSize,
         };
       }
@@ -652,6 +854,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
       eventX += event.width + eventGap;
     });
     mergeBeamUnderlines(measure, options);
+    mergeTupletBrackets(measure, options, warnings);
 
     if (measure.endingBar) {
       var barX = cursorX + measure.width - measure.endingBar.width;
@@ -711,6 +914,20 @@ function positionLine(line, lineIndex, contentWidth, options) {
             strokeWidth: options.thinBarWidth,
           },
         );
+      } else if (
+        measure.endingBar.type === "bar_left_repeat" ||
+        measure.endingBar.type === "bar_right_repeat" ||
+        measure.endingBar.type === "bar_dbl_repeat"
+      ) {
+        var repeatGeometry = repeatBarGeometry(
+          measure.endingBar.type,
+          barX,
+          measure.endingBar.y1,
+          measure.endingBar.y2,
+          options,
+        );
+        measure.endingBar.lines = repeatGeometry.lines;
+        measure.endingBar.dots = repeatGeometry.dots;
       } else {
         measure.endingBar.lines.push({
           x1: barX,
@@ -720,6 +937,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
           strokeWidth: options.thinBarWidth,
         });
       }
+      measure.endingBar.dots = measure.endingBar.dots || [];
     }
 
     cursorX += measure.width;
@@ -823,6 +1041,157 @@ function layoutTies(lines, options, warnings) {
   });
 }
 
+// Slurs are phrasing marks spanning a group of notes across different
+// pitches (as opposed to a tie, which only ever connects two notes of the
+// *same* pitch). abcjs identifies each slur by a numeric label shared
+// between its startSlur/endSlur entries (see create-jianpu-converter's
+// convertPitch), so — unlike layoutTies' pitch-signature map — the pending
+// map here is keyed by that label. Only the first and last note of a slur
+// matter for drawing; any notes in between are irrelevant to the arc.
+function slurAnchorY(note, options) {
+  return tieAnchorY(note, options) - options.slurExtraRaise;
+}
+
+function layoutSlurs(lines, options, warnings) {
+  var pending = new Map();
+  lines.forEach(function (line) {
+    line.slurPaths = [];
+    line.measures.forEach(function (measure) {
+      measure.events.forEach(function (event) {
+        event.notePositions.forEach(function (note) {
+          (note.slurEnd || []).forEach(function (label) {
+            var start = pending.get(label);
+            if (!start) {
+              warnings.push(
+                "Slur end (label " + label + ") has no matching start.",
+              );
+              return;
+            }
+            pending.delete(label);
+            var arcHeight = options.tieArcHeight + options.slurExtraArc;
+            if (start.line === line) {
+              var sameLineY = Math.min(
+                slurAnchorY(start.note, options),
+                slurAnchorY(note, options),
+              );
+              line.slurPaths.push({
+                d: tiePath(start.note.x + 6, note.x - 6, sameLineY, arcHeight),
+              });
+            } else {
+              var startLineEnd =
+                start.line.measures[start.line.measures.length - 1];
+              var outgoingEndX = startLineEnd.x + startLineEnd.width - 5;
+              start.line.slurPaths.push({
+                d: tiePath(
+                  start.note.x + 6,
+                  outgoingEndX,
+                  slurAnchorY(start.note, options),
+                  arcHeight,
+                ),
+              });
+              line.slurPaths.push({
+                d: tiePath(
+                  options.paddingLeft + 5,
+                  note.x - 6,
+                  slurAnchorY(note, options),
+                  arcHeight,
+                ),
+              });
+            }
+          });
+          (note.slurStart || []).forEach(function (label) {
+            pending.set(label, { note: note, line: line });
+          });
+        });
+      });
+    });
+  });
+  pending.forEach(function (value, label) {
+    warnings.push("Slur start (label " + label + ") has no matching end.");
+  });
+}
+
+// Voltas ("first/second ending" brackets) are read off bar elements'
+// startEnding/endEnding fields (see index.js's convertAbcTune and
+// groupMeasures above). Per ABC semantics, a bar with startEnding marks
+// where the *next* measure begins the ending (the bar itself still closes
+// out the previous section), while endEnding marks the bar that closes the
+// ending's own last measure — the same bar can carry both simultaneously
+// (":|1 ... :|2" style writing) to immediately open the next ending.
+function layoutVoltas(lines, options, warnings) {
+  var allMeasures = [];
+  lines.forEach(function (line) {
+    line.voltaBrackets = [];
+    line.measures.forEach(function (measure) {
+      allMeasures.push({ measure: measure, line: line });
+    });
+  });
+
+  var active = null;
+  var pendingLabel = null;
+
+  function closeActive(endEntry) {
+    var endX = endEntry.measure.endingBar
+      ? endEntry.measure.endingBar.x
+      : endEntry.measure.x + endEntry.measure.width;
+    if (active.line === endEntry.line) {
+      active.line.voltaBrackets.push({
+        label: active.label,
+        x1: active.startMeasure.x,
+        x2: endX,
+        y: active.line.y + options.voltaGap,
+        tickHeight: options.voltaTickHeight,
+        labelX: active.startMeasure.x + 6,
+        labelY: active.line.y + options.voltaGap - 3,
+      });
+    } else {
+      warnings.push(
+        "Volta \"" + active.label + "\" spans multiple lines; only the " +
+          "starting line's portion was bracketed.",
+      );
+      var startLineLast =
+        active.line.measures[active.line.measures.length - 1];
+      var startLineEndX = startLineLast.endingBar
+        ? startLineLast.endingBar.x
+        : startLineLast.x + startLineLast.width;
+      active.line.voltaBrackets.push({
+        label: active.label,
+        x1: active.startMeasure.x,
+        x2: startLineEndX,
+        y: active.line.y + options.voltaGap,
+        tickHeight: options.voltaTickHeight,
+        labelX: active.startMeasure.x + 6,
+        labelY: active.line.y + options.voltaGap - 3,
+      });
+    }
+    active = null;
+  }
+
+  allMeasures.forEach(function (entry) {
+    if (pendingLabel !== null) {
+      active = { label: pendingLabel, startMeasure: entry.measure, line: entry.line };
+      pendingLabel = null;
+    }
+    var endingBar = entry.measure.endingBar;
+    if (!endingBar) return;
+    if (endingBar.endEnding) {
+      if (!active) {
+        warnings.push("Volta ending marker has no matching start.");
+      } else {
+        closeActive(entry);
+      }
+    }
+    if (endingBar.startEnding) pendingLabel = endingBar.startEnding;
+  });
+
+  if (active)
+    warnings.push("Volta \"" + active.label + "\" has no matching end.");
+  if (pendingLabel !== null)
+    warnings.push(
+      "Volta \"" + pendingLabel + "\" marker has no following measure.",
+    );
+}
+
 /**
  * Lay out converted jianpu events without requiring a browser DOM.
  *
@@ -846,9 +1215,11 @@ function layoutJianpu(elements, options, measureText) {
   var measures = groupMeasures(elements || [], options, measureText, warnings);
   var lines = wrapMeasures(measures, contentWidth, options, warnings);
   lines.forEach(function (line, index) {
-    positionLine(line, index, contentWidth, options);
+    positionLine(line, index, contentWidth, options, warnings);
   });
   layoutTies(lines, options, warnings);
+  layoutSlurs(lines, options, warnings);
+  layoutVoltas(lines, options, warnings);
   var totalPages = Math.ceil(lines.length / options.linesPerPage);
   var pageNumbers = [];
   if (totalPages > 1) {
@@ -954,6 +1325,9 @@ function layoutJianpu(elements, options, measureText) {
       dynamicFontSize: options.dynamicFontSize,
       lyricFontSize: options.lyricFontSize,
       pageNumberFontSize: options.pageNumberFontSize,
+      tupletFontSize: options.tupletFontSize,
+      voltaFontSize: options.voltaFontSize,
+      graceNoteFontSize: options.graceNoteFontSize,
     },
     lines: lines,
     pageNumbers: pageNumbers,

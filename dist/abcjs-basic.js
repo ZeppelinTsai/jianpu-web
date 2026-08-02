@@ -2562,6 +2562,7 @@ module.exports = Editor;
 "use strict";
 
 
+function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (obj) { return typeof obj; } : function (obj) { return obj && "function" == typeof Symbol && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }, _typeof(obj); }
 var DIATONIC_INDEX = {
   C: 0,
   D: 1,
@@ -2660,6 +2661,9 @@ function durationMarks(representation) {
     dots: representation.dots
   };
 }
+function warnOnce(context, message) {
+  if (context.warnings.indexOf(message) === -1) context.warnings.push(message);
+}
 
 /**
  * Create a stateful converter from ABCJS Tune AST notes to jianpu events.
@@ -2696,7 +2700,9 @@ function createJianpuConverter(initialKey) {
     keyAccidentals: new Map(),
     measureAccidentals: new Map(),
     warnings: [],
-    instrument: "piano"
+    instrument: "piano",
+    activeTuplet: null,
+    tupletCounter: 0
   };
   function setKey(key) {
     context.key = cloneKey(key);
@@ -2705,6 +2711,9 @@ function createJianpuConverter(initialKey) {
   }
   function resetBar() {
     context.measureAccidentals.clear();
+    if (context.activeTuplet) {
+      context.warnings.push("A tuplet marking spans a bar line, which is not fully supported; " + "the tuplet bracket may be drawn incorrectly.");
+    }
   }
   function setInstrument(instrument) {
     context.instrument = instrument || "piano";
@@ -2743,10 +2752,20 @@ function createJianpuConverter(initialKey) {
     };
     if (pitch.startTie) convertedPitch.tieStart = true;
     if (pitch.endTie) convertedPitch.tieEnd = true;
+    if (Array.isArray(pitch.startSlur) && pitch.startSlur.length) {
+      convertedPitch.slurStart = pitch.startSlur.map(function (slur) {
+        return slur && _typeof(slur) === "object" ? slur.label : slur;
+      });
+    }
+    if (Array.isArray(pitch.endSlur) && pitch.endSlur.length) {
+      convertedPitch.slurEnd = pitch.endSlur.map(function (slur) {
+        return slur && _typeof(slur) === "object" ? slur.label : slur;
+      });
+    }
     return convertedPitch;
   }
-  function restEvent(marks) {
-    return {
+  function restEvent(marks, tuplet, durationScale) {
+    var event = {
       notes: [{
         number: 0,
         octaveDots: 0,
@@ -2755,9 +2774,12 @@ function createJianpuConverter(initialKey) {
       durationMarks: marks,
       instrument: context.instrument
     };
+    if (tuplet) event.tuplet = tuplet;
+    if (durationScale && durationScale !== 1) event.durationScale = durationScale;
+    return event;
   }
-  function convertRest(representation) {
-    if (representation.extensionDashes === 0) return [restEvent(durationMarks(representation))];
+  function convertRest(representation, tuplet, durationScale) {
+    if (representation.extensionDashes === 0) return [restEvent(durationMarks(representation), tuplet, durationScale)];
     var count = representation.extensionDashes + 1;
     var marks = {
       extensionDashes: 0,
@@ -2766,18 +2788,84 @@ function createJianpuConverter(initialKey) {
     };
     var events = [];
     for (var i = 0; i < count; i++) {
-      events.push(restEvent(marks));
+      events.push(restEvent(marks, tuplet, durationScale));
     }
     return events;
   }
+
+  // Resolve a note's duration marks (underlines/dashes/dots), taking any
+  // active tuplet into account. abcjs keeps note.duration at the *written*
+  // (unscaled) value for tuplet members and exposes the sounding ratio
+  // separately via startTriplet/tripletMultiplier/endTriplet (only the
+  // first note of a group carries startTriplet/tripletMultiplier; the
+  // group's other members must be tracked statefully, mirroring how
+  // abc_midi_sequencer.js derives sounding durations for playback).
+  //
+  // We first try the actual sounding duration (written * multiplier) so
+  // ratios that happen to land on a representable jianpu value (e.g. a
+  // duplet's 3:2 multiplier, which matches the existing dotted-note
+  // multiplier) render exactly. When that does not resolve to a
+  // representable duration (the common case for a plain 3-against-2
+  // triplet, which jianpu's underline/dot vocabulary cannot express on its
+  // own), we fall back to the note's written value plus a tuplet bracket
+  // and a warning, rather than silently rendering it as an unmarked plain
+  // note (the original bug).
+  function resolveTupletDuration(note) {
+    var startedTupletHere = false;
+    if (note.startTriplet) {
+      if (context.activeTuplet) {
+        context.warnings.push("Nested tuplet starting near duration " + note.duration + " was ignored; only one tuplet level is supported at a time.");
+      } else {
+        context.tupletCounter++;
+        context.activeTuplet = {
+          ratio: note.startTriplet,
+          multiplier: Number(note.tripletMultiplier) || 1,
+          id: context.tupletCounter
+        };
+        startedTupletHere = true;
+      }
+    }
+    var activeTuplet = context.activeTuplet;
+    var endsTupletHere = activeTuplet !== null && note.endTriplet === true;
+    var nominalDuration = Number(note.duration);
+    var representation;
+    var durationScale = 1;
+    var tuplet = null;
+    if (activeTuplet) {
+      var soundingDuration = nominalDuration * activeTuplet.multiplier;
+      representation = findDurationRepresentation(soundingDuration);
+      if (!representation) {
+        representation = findDurationRepresentation(nominalDuration);
+        if (representation) {
+          durationScale = activeTuplet.multiplier;
+          warnOnce(context, "Tuplet ratio " + activeTuplet.ratio + " does not resolve to a " + "representable jianpu duration; affected notes are shown at " + "their written value with a " + activeTuplet.ratio + "-bracket, so the exact sounding rhythm is approximate.");
+        }
+      }
+      tuplet = {
+        id: activeTuplet.id,
+        ratio: activeTuplet.ratio,
+        isStart: startedTupletHere,
+        isEnd: endsTupletHere
+      };
+    } else {
+      representation = findDurationRepresentation(nominalDuration);
+    }
+    if (endsTupletHere) context.activeTuplet = null;
+    return {
+      representation: representation,
+      tuplet: tuplet,
+      durationScale: durationScale
+    };
+  }
   function convertNote(note) {
     if (!note || note.el_type !== "note") throw new TypeError("convertNote expects an ABCJS note element.");
-    var representation = findDurationRepresentation(Number(note.duration));
+    var resolved = resolveTupletDuration(note);
+    var representation = resolved.representation;
     if (!representation) {
       context.warnings.push("Unsupported duration: " + note.duration);
       return [];
     }
-    if (note.rest) return convertRest(representation);
+    if (note.rest) return convertRest(representation, resolved.tuplet, resolved.durationScale);
     if (!Array.isArray(note.pitches) || note.pitches.length === 0) {
       context.warnings.push("A non-rest note has no pitches.");
       return [];
@@ -2794,6 +2882,19 @@ function createJianpuConverter(initialKey) {
       // syllable to render.
       lyric: note.lyric && note.lyric[0] ? note.lyric[0].syllable : null
     };
+    if (resolved.tuplet) event.tuplet = resolved.tuplet;
+    if (resolved.durationScale !== 1) event.durationScale = resolved.durationScale;
+    if (Array.isArray(note.gracenotes) && note.gracenotes.length) {
+      event.graceNotes = note.gracenotes.map(function (gracePitch) {
+        var converted = convertPitch(gracePitch);
+        return {
+          number: converted.number,
+          octaveDots: converted.octaveDots,
+          accidentalMark: converted.accidentalMark
+        };
+      });
+      warnOnce(context, "Grace notes are rendered as simplified small notes (approximate " + "spacing, no individual duration marks) before their main note.");
+    }
     if (note.chord) {
       event.chordSymbols = note.chord.filter(function (chord) {
         return chord && chord.name && (!chord.position || chord.position === "default" || chord.position === "above" && !/^[1-5①②③④⑤]$/.test(chord.name));
@@ -2807,8 +2908,17 @@ function createJianpuConverter(initialKey) {
       });
     }
     if (note.decoration) {
-      event.dynamics = note.decoration.filter(function (decoration) {
+      var isDynamic = function isDynamic(decoration) {
         return /^(pppp|ppp|pp|p|mp|mf|f|ff|fff|ffff)$/.test(decoration);
+      };
+      event.dynamics = note.decoration.filter(isDynamic);
+      note.decoration.forEach(function (decoration) {
+        if (isDynamic(decoration)) return;
+        if (decoration === "staccato") {
+          event.staccato = true;
+          return;
+        }
+        warnOnce(context, "Decoration '" + decoration + "' is not yet supported and was not rendered.");
       });
     }
     if (note.startBeam || note.endBeam) {
@@ -3021,7 +3131,9 @@ function convertAbcTune(tune, rawAbc) {
         converter.resetBar();
         elements.push({
           type: "bar",
-          barType: element.type
+          barType: element.type,
+          startEnding: element.startEnding || null,
+          endEnding: element.endEnding === true
         });
       } else if (element.el_type === "note") {
         if (element.rest === undefined) playableNoteCount++;
@@ -3457,7 +3569,24 @@ var DEFAULT_OPTIONS = {
   barBottomExtra: 8,
   thinBarWidth: 1,
   thickBarWidth: 4,
-  tonicMidi: 60
+  tonicMidi: 60,
+  repeatDotRadius: 2,
+  repeatDotGap: 5,
+  repeatDotSpacing: 7,
+  voltaGap: 6,
+  voltaTickHeight: 8,
+  voltaFontSize: 13,
+  tupletGap: 6,
+  tupletTickHeight: 4,
+  tupletFontSize: 13,
+  graceNoteWidth: 12,
+  graceNoteGap: 4,
+  graceNoteFontSize: 13,
+  graceNoteRaise: 4,
+  slurExtraRaise: 6,
+  slurExtraArc: 6,
+  staccatoDotRadius: 1.6,
+  staccatoGap: 5
 };
 
 // Jianpu scale degrees (1-7) are treated as a major scale relative to the
@@ -3486,7 +3615,10 @@ var SUPPORTED_BARS = {
   bar_thin: true,
   bar_thin_thin: true,
   bar_thin_thick: true,
-  bar_thick_thin: true
+  bar_thick_thin: true,
+  bar_left_repeat: true,
+  bar_right_repeat: true,
+  bar_dbl_repeat: true
 };
 function mergeOptions(options) {
   return Object.assign({}, DEFAULT_OPTIONS, options || {});
@@ -3518,9 +3650,76 @@ function barWidth(barType, options) {
     case "bar_thin_thick":
     case "bar_thick_thin":
       return options.thinBarWidth + options.thickBarWidth + options.doubleBarGap;
+    // Standard repeat-bar geometry (matches staff notation convention): a
+    // thin+thick bar pair plus two dots on the side facing the repeated
+    // section. bar_left_repeat ("|:") opens toward the right (dots after
+    // the bars); bar_right_repeat (":|") opens toward the left (dots
+    // before the bars); bar_dbl_repeat ("::", simultaneously closing one
+    // repeated section and opening the next) has dots on both sides.
+    case "bar_left_repeat":
+    case "bar_right_repeat":
+      return options.doubleBarGap + options.repeatDotGap + options.repeatDotRadius * 2;
+    case "bar_dbl_repeat":
+      return options.repeatDotRadius * 4 + options.repeatDotGap * 2 + options.doubleBarGap * 2;
     default:
       return options.thinBarWidth;
   }
+}
+
+// Builds the line/dot geometry for a repeat-type bar (see barWidth above for
+// the same left-to-right ordering, kept in sync with this function so the
+// reserved width always matches what actually gets drawn).
+function repeatBarGeometry(type, barX, y1, y2, options) {
+  var lines = [];
+  var dots = [];
+  function addLine(x, strokeWidth) {
+    lines.push({
+      x1: x,
+      x2: x,
+      y1: y1,
+      y2: y2,
+      strokeWidth: strokeWidth
+    });
+  }
+  function addDots(cx) {
+    var midY = (y1 + y2) / 2;
+    dots.push({
+      cx: cx,
+      cy: midY - options.repeatDotSpacing / 2,
+      r: options.repeatDotRadius
+    }, {
+      cx: cx,
+      cy: midY + options.repeatDotSpacing / 2,
+      r: options.repeatDotRadius
+    });
+  }
+  if (type === "bar_left_repeat") {
+    var leftThinX = barX + options.doubleBarGap;
+    addLine(barX, options.thickBarWidth);
+    addLine(leftThinX, options.thinBarWidth);
+    addDots(leftThinX + options.repeatDotGap + options.repeatDotRadius);
+  } else if (type === "bar_right_repeat") {
+    var dotCx = barX + options.repeatDotRadius;
+    var thinX = dotCx + options.repeatDotRadius + options.repeatDotGap;
+    addDots(dotCx);
+    addLine(thinX, options.thinBarWidth);
+    addLine(thinX + options.doubleBarGap, options.thickBarWidth);
+  } else if (type === "bar_dbl_repeat") {
+    var leftDotCx = barX + options.repeatDotRadius;
+    var leftThin = leftDotCx + options.repeatDotRadius + options.repeatDotGap;
+    var thick = leftThin + options.doubleBarGap;
+    var rightThin = thick + options.doubleBarGap;
+    var rightDotCx = rightThin + options.repeatDotGap + options.repeatDotRadius;
+    addDots(leftDotCx);
+    addLine(leftThin, options.thinBarWidth);
+    addLine(thick, options.thickBarWidth);
+    addLine(rightThin, options.thinBarWidth);
+    addDots(rightDotCx);
+  }
+  return {
+    lines: lines,
+    dots: dots
+  };
 }
 function measureEvent(event, options, measureText) {
   var widestNote = options.numberWidth;
@@ -3542,12 +3741,14 @@ function measureEvent(event, options, measureText) {
       fontSize: options.chordFontSize
     }));
   });
+  var graceWidth = (event.graceNotes || []).length ? event.graceNotes.length * options.graceNoteWidth + options.graceNoteGap : 0;
   return {
     source: event,
-    naturalWidth: Math.max(widestNote + rightWidth, chordWidth),
+    naturalWidth: Math.max(widestNote + rightWidth, chordWidth) + graceWidth,
     noteColumnWidth: widestNote,
     rightWidth: rightWidth,
-    internalGapCount: marks.extensionDashes
+    internalGapCount: marks.extensionDashes,
+    graceWidth: graceWidth
   };
 }
 function createMeasure(index) {
@@ -3580,7 +3781,9 @@ function groupMeasures(elements, options, measureText, warnings) {
       current.endingBar = {
         sourceType: requestedType,
         type: renderedType,
-        width: barWidth(renderedType, options)
+        width: barWidth(renderedType, options),
+        startEnding: element.startEnding || null,
+        endEnding: element.endEnding === true
       };
       measures.push(current);
       current = createMeasure(measures.length);
@@ -3690,7 +3893,63 @@ function mergeBeamUnderlines(measure, options) {
   });
   finishGroup();
 }
-function positionLine(line, lineIndex, contentWidth, options) {
+function tupletTopY(event, options) {
+  return event.notePositions.reduce(function (top, note) {
+    return Math.min(top, tieAnchorY(note, options));
+  }, Infinity);
+}
+
+// Groups consecutive events sharing a tuplet id (see event.tuplet, set from
+// create-jianpu-converter's startTriplet/endTriplet tracking) and lays out a
+// bracket + ratio number spanning the group, mirroring mergeBeamUnderlines'
+// approach to beam grouping. A tuplet whose start/end don't both land inside
+// this measure (e.g. it spans a bar line) is intentionally left unbracketed
+// here — create-jianpu-converter's resetBar() already pushes a warning for
+// that case — rather than drawing a bracket that doesn't actually match the
+// source.
+function mergeTupletBrackets(measure, options, warnings) {
+  measure.tupletBrackets = [];
+  var activeGroup = [];
+  function finishGroup() {
+    if (!activeGroup.length) return;
+    var last = activeGroup[activeGroup.length - 1];
+    if (!last.tuplet.isEnd) {
+      warnings.push("Tuplet " + activeGroup[0].tuplet.ratio + " in measure " + (measure.index + 1) + " has no matching end within the measure; bracket was not drawn.");
+    } else if (activeGroup.length >= 2) {
+      var first = activeGroup[0];
+      var y = activeGroup.reduce(function (top, event) {
+        return Math.min(top, tupletTopY(event, options));
+      }, Infinity) - options.tupletGap;
+      var x1 = first.x;
+      var x2 = last.x + last.noteColumnWidth;
+      measure.tupletBrackets.push({
+        x1: x1,
+        x2: x2,
+        y: y,
+        tickHeight: options.tupletTickHeight,
+        label: String(first.tuplet.ratio),
+        labelX: (x1 + x2) / 2,
+        labelY: y - 3
+      });
+    }
+    activeGroup = [];
+  }
+  measure.events.forEach(function (event) {
+    if (!event.tuplet) {
+      finishGroup();
+      return;
+    }
+    if (event.tuplet.isStart) {
+      finishGroup();
+      activeGroup = [event];
+    } else if (activeGroup.length) {
+      activeGroup.push(event);
+    }
+    if (activeGroup.length && event.tuplet.isEnd) finishGroup();
+  });
+  finishGroup();
+}
+function positionLine(line, lineIndex, contentWidth, options, warnings) {
   var pageIndex = Math.floor(lineIndex / options.linesPerPage);
   var lineTop = options.paddingTop + options.headerHeight + lineIndex * options.lineHeight + pageIndex * options.pageFooterHeight;
   var baselineY = lineTop + options.noteBaselineOffset;
@@ -3747,13 +4006,15 @@ function positionLine(line, lineIndex, contentWidth, options) {
     measure.contentLeftPadding = contentLeftPadding;
     var eventX = cursorX + contentLeftPadding + (measure.endingBar ? options.barGap / 2 : 0);
     measure.events.forEach(function (event) {
-      event.x = eventX;
+      var noteStartX = eventX + (event.graceWidth || 0);
+      event.x = noteStartX;
+      event.graceStartX = eventX;
       event.y = baselineY;
       event.width = event.naturalWidth + event.internalGapCount * eventGap;
       event.notePositions = [];
       var notes = event.source.notes;
       notes.forEach(function (note, noteIndex) {
-        var noteX = eventX + event.noteColumnWidth / 2;
+        var noteX = noteStartX + event.noteColumnWidth / 2;
         var noteY = baselineY - noteIndex * options.chordNoteGap;
         var octaveDotPositions = [];
         var octaveDotCount = Math.abs(note.octaveDots);
@@ -3779,6 +4040,8 @@ function positionLine(line, lineIndex, contentWidth, options) {
           midi: noteMidiNumber(note, options),
           tieStart: note.tieStart === true,
           tieEnd: note.tieEnd === true,
+          slurStart: note.slurStart || null,
+          slurEnd: note.slurEnd || null,
           accidentalText: accidental,
           accidentalPosition: accidental ? {
             x: noteX - options.numberWidth / 2 - options.accidentalGap,
@@ -3788,11 +4051,12 @@ function positionLine(line, lineIndex, contentWidth, options) {
         });
       });
       event.durationMarks = Object.assign({}, event.source.durationMarks);
-      event.durationBeats = eventDurationBeats(event.durationMarks);
+      event.durationBeats = eventDurationBeats(event.durationMarks) * (event.source.durationScale || 1);
       event.beam = Object.assign({
         start: false,
         end: false
       }, event.source.beam);
+      event.tuplet = event.source.tuplet || null;
       event.instrument = event.source.instrument || "piano";
       event.lyric = event.source.lyric !== undefined ? event.source.lyric : null;
       var highDotTop = baselineY - options.numberTopOffset - options.octaveDotRadius;
@@ -3801,14 +4065,17 @@ function positionLine(line, lineIndex, contentWidth, options) {
           if (dot.cy < note.y) highDotTop = Math.min(highDotTop, dot.cy - dot.r);
         });
       });
-      var firstFingeringCy = highDotTop - options.fingeringGap - options.fingeringRadius;
+      var hasStaccato = event.source.staccato === true;
+      var staccatoY = highDotTop - options.staccatoGap;
+      var fingeringCeiling = hasStaccato ? staccatoY - options.staccatoGap : highDotTop;
+      var firstFingeringCy = fingeringCeiling - options.fingeringGap - options.fingeringRadius;
       var fingeringTop = firstFingeringCy - options.fingeringRadius;
       var chordBaseY = Math.min(lineTop + 15, fingeringTop - 4);
       event.annotations = {
         chords: (event.source.chordSymbols || []).map(function (chord, index) {
           return {
             text: chord,
-            x: eventX + event.noteColumnWidth / 2,
+            x: noteStartX + event.noteColumnWidth / 2,
             y: chordBaseY - index * (options.chordFontSize + 2)
           };
         }),
@@ -3816,11 +4083,34 @@ function positionLine(line, lineIndex, contentWidth, options) {
         fingerings: (event.source.fingerings || []).map(function (fingering, index) {
           return {
             text: fingering,
-            cx: eventX + event.noteColumnWidth / 2,
+            cx: noteStartX + event.noteColumnWidth / 2,
             cy: firstFingeringCy - index * (options.fingeringRadius * 2 + 3),
             r: options.fingeringRadius
           };
-        })
+        }),
+        // Grace notes are a best-effort visual: small numbers packed
+        // left-to-right immediately before the main note, without their own
+        // duration marks or precise beat-accurate spacing (see the warning
+        // create-jianpu-converter pushes when note.gracenotes is present).
+        graceNotes: (event.source.graceNotes || []).map(function (grace, index) {
+          var gx = event.graceStartX + options.graceNoteWidth * (index + 0.5);
+          var accidental = accidentalText(grace.accidentalMark);
+          return {
+            x: gx,
+            y: baselineY - options.graceNoteRaise,
+            number: grace.number,
+            accidentalText: accidental,
+            accidentalPosition: accidental ? {
+              x: gx - options.graceNoteWidth / 2,
+              y: baselineY - options.graceNoteRaise - options.accidentalRaise * 0.6
+            } : null
+          };
+        }),
+        staccato: hasStaccato ? {
+          cx: noteStartX + event.noteColumnWidth / 2,
+          cy: staccatoY,
+          r: options.staccatoDotRadius
+        } : null
       };
       var lowestNote = event.notePositions[0];
       var underlineStartY = lowestNote.y + options.numberBottomOffset + options.underlineGap;
@@ -3832,14 +4122,14 @@ function positionLine(line, lineIndex, contentWidth, options) {
       for (var underlineIndex = 0; underlineIndex < event.durationMarks.underlines; underlineIndex++) {
         var underlineY = underlineStartY + underlineIndex * options.underlineSpacing;
         event.durationLayout.underlines.push({
-          x1: eventX,
-          x2: eventX + event.noteColumnWidth,
+          x1: noteStartX,
+          x2: noteStartX + event.noteColumnWidth,
           y1: underlineY,
           y2: underlineY,
           strokeWidth: 1.4
         });
       }
-      var rightCursor = eventX + event.noteColumnWidth;
+      var rightCursor = noteStartX + event.noteColumnWidth;
       for (var dashIndex = 0; dashIndex < event.durationMarks.extensionDashes; dashIndex++) {
         var dashStart = rightCursor + (dashIndex + 1) * eventGap + dashIndex * options.extensionDashWidth;
         event.durationLayout.extensionDashes.push({
@@ -3867,7 +4157,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         });
         event.annotations.dynamics.push({
           text: dynamic,
-          x: eventX + event.noteColumnWidth / 2,
+          x: noteStartX + event.noteColumnWidth / 2,
           y: lowestVisualY + 14 + index * (options.dynamicFontSize + 2)
         });
       });
@@ -3892,7 +4182,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
         }
         event.annotations.lyric = {
           text: event.lyric,
-          x: eventX + event.noteColumnWidth / 2,
+          x: noteStartX + event.noteColumnWidth / 2,
           y: lyricBaseY + options.lyricGap + options.lyricFontSize
         };
       }
@@ -3900,6 +4190,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
       eventX += event.width + eventGap;
     });
     mergeBeamUnderlines(measure, options);
+    mergeTupletBrackets(measure, options, warnings);
     if (measure.endingBar) {
       var barX = cursorX + measure.width - measure.endingBar.width;
       measure.endingBar.x = barX;
@@ -3948,6 +4239,10 @@ function positionLine(line, lineIndex, contentWidth, options) {
           y2: measure.endingBar.y2,
           strokeWidth: options.thinBarWidth
         });
+      } else if (measure.endingBar.type === "bar_left_repeat" || measure.endingBar.type === "bar_right_repeat" || measure.endingBar.type === "bar_dbl_repeat") {
+        var repeatGeometry = repeatBarGeometry(measure.endingBar.type, barX, measure.endingBar.y1, measure.endingBar.y2, options);
+        measure.endingBar.lines = repeatGeometry.lines;
+        measure.endingBar.dots = repeatGeometry.dots;
       } else {
         measure.endingBar.lines.push({
           x1: barX,
@@ -3957,6 +4252,7 @@ function positionLine(line, lineIndex, contentWidth, options) {
           strokeWidth: options.thinBarWidth
         });
       }
+      measure.endingBar.dots = measure.endingBar.dots || [];
     }
     cursorX += measure.width;
   });
@@ -4020,6 +4316,134 @@ function layoutTies(lines, options, warnings) {
   });
 }
 
+// Slurs are phrasing marks spanning a group of notes across different
+// pitches (as opposed to a tie, which only ever connects two notes of the
+// *same* pitch). abcjs identifies each slur by a numeric label shared
+// between its startSlur/endSlur entries (see create-jianpu-converter's
+// convertPitch), so — unlike layoutTies' pitch-signature map — the pending
+// map here is keyed by that label. Only the first and last note of a slur
+// matter for drawing; any notes in between are irrelevant to the arc.
+function slurAnchorY(note, options) {
+  return tieAnchorY(note, options) - options.slurExtraRaise;
+}
+function layoutSlurs(lines, options, warnings) {
+  var pending = new Map();
+  lines.forEach(function (line) {
+    line.slurPaths = [];
+    line.measures.forEach(function (measure) {
+      measure.events.forEach(function (event) {
+        event.notePositions.forEach(function (note) {
+          (note.slurEnd || []).forEach(function (label) {
+            var start = pending.get(label);
+            if (!start) {
+              warnings.push("Slur end (label " + label + ") has no matching start.");
+              return;
+            }
+            pending["delete"](label);
+            var arcHeight = options.tieArcHeight + options.slurExtraArc;
+            if (start.line === line) {
+              var sameLineY = Math.min(slurAnchorY(start.note, options), slurAnchorY(note, options));
+              line.slurPaths.push({
+                d: tiePath(start.note.x + 6, note.x - 6, sameLineY, arcHeight)
+              });
+            } else {
+              var startLineEnd = start.line.measures[start.line.measures.length - 1];
+              var outgoingEndX = startLineEnd.x + startLineEnd.width - 5;
+              start.line.slurPaths.push({
+                d: tiePath(start.note.x + 6, outgoingEndX, slurAnchorY(start.note, options), arcHeight)
+              });
+              line.slurPaths.push({
+                d: tiePath(options.paddingLeft + 5, note.x - 6, slurAnchorY(note, options), arcHeight)
+              });
+            }
+          });
+          (note.slurStart || []).forEach(function (label) {
+            pending.set(label, {
+              note: note,
+              line: line
+            });
+          });
+        });
+      });
+    });
+  });
+  pending.forEach(function (value, label) {
+    warnings.push("Slur start (label " + label + ") has no matching end.");
+  });
+}
+
+// Voltas ("first/second ending" brackets) are read off bar elements'
+// startEnding/endEnding fields (see index.js's convertAbcTune and
+// groupMeasures above). Per ABC semantics, a bar with startEnding marks
+// where the *next* measure begins the ending (the bar itself still closes
+// out the previous section), while endEnding marks the bar that closes the
+// ending's own last measure — the same bar can carry both simultaneously
+// (":|1 ... :|2" style writing) to immediately open the next ending.
+function layoutVoltas(lines, options, warnings) {
+  var allMeasures = [];
+  lines.forEach(function (line) {
+    line.voltaBrackets = [];
+    line.measures.forEach(function (measure) {
+      allMeasures.push({
+        measure: measure,
+        line: line
+      });
+    });
+  });
+  var active = null;
+  var pendingLabel = null;
+  function closeActive(endEntry) {
+    var endX = endEntry.measure.endingBar ? endEntry.measure.endingBar.x : endEntry.measure.x + endEntry.measure.width;
+    if (active.line === endEntry.line) {
+      active.line.voltaBrackets.push({
+        label: active.label,
+        x1: active.startMeasure.x,
+        x2: endX,
+        y: active.line.y + options.voltaGap,
+        tickHeight: options.voltaTickHeight,
+        labelX: active.startMeasure.x + 6,
+        labelY: active.line.y + options.voltaGap - 3
+      });
+    } else {
+      warnings.push("Volta \"" + active.label + "\" spans multiple lines; only the " + "starting line's portion was bracketed.");
+      var startLineLast = active.line.measures[active.line.measures.length - 1];
+      var startLineEndX = startLineLast.endingBar ? startLineLast.endingBar.x : startLineLast.x + startLineLast.width;
+      active.line.voltaBrackets.push({
+        label: active.label,
+        x1: active.startMeasure.x,
+        x2: startLineEndX,
+        y: active.line.y + options.voltaGap,
+        tickHeight: options.voltaTickHeight,
+        labelX: active.startMeasure.x + 6,
+        labelY: active.line.y + options.voltaGap - 3
+      });
+    }
+    active = null;
+  }
+  allMeasures.forEach(function (entry) {
+    if (pendingLabel !== null) {
+      active = {
+        label: pendingLabel,
+        startMeasure: entry.measure,
+        line: entry.line
+      };
+      pendingLabel = null;
+    }
+    var endingBar = entry.measure.endingBar;
+    if (!endingBar) return;
+    if (endingBar.endEnding) {
+      if (!active) {
+        warnings.push("Volta ending marker has no matching start.");
+      } else {
+        closeActive(entry);
+      }
+    }
+    if (endingBar.startEnding) pendingLabel = endingBar.startEnding;
+  });
+  if (active) warnings.push("Volta \"" + active.label + "\" has no matching end.");
+  if (pendingLabel !== null) warnings.push("Volta \"" + pendingLabel + "\" marker has no following measure.");
+}
+
 /**
  * Lay out converted jianpu events without requiring a browser DOM.
  *
@@ -4037,9 +4461,11 @@ function layoutJianpu(elements, options, measureText) {
   var measures = groupMeasures(elements || [], options, measureText, warnings);
   var lines = wrapMeasures(measures, contentWidth, options, warnings);
   lines.forEach(function (line, index) {
-    positionLine(line, index, contentWidth, options);
+    positionLine(line, index, contentWidth, options, warnings);
   });
   layoutTies(lines, options, warnings);
+  layoutSlurs(lines, options, warnings);
+  layoutVoltas(lines, options, warnings);
   var totalPages = Math.ceil(lines.length / options.linesPerPage);
   var pageNumbers = [];
   if (totalPages > 1) {
@@ -4131,7 +4557,10 @@ function layoutJianpu(elements, options, measureText) {
       chordFontSize: options.chordFontSize,
       dynamicFontSize: options.dynamicFontSize,
       lyricFontSize: options.lyricFontSize,
-      pageNumberFontSize: options.pageNumberFontSize
+      pageNumberFontSize: options.pageNumberFontSize,
+      tupletFontSize: options.tupletFontSize,
+      voltaFontSize: options.voltaFontSize,
+      graceNoteFontSize: options.graceNoteFontSize
     },
     lines: lines,
     pageNumbers: pageNumbers,
@@ -4410,7 +4839,7 @@ function renderJianpuSvg(layout, options) {
   var output = [];
   output.push('<?xml version="1.0" encoding="UTF-8"?>');
   output.push('<svg xmlns="http://www.w3.org/2000/svg" class="' + escapeXml(className) + '" width="' + number(layout.width) + '" height="' + number(layout.height) + '" viewBox="0 0 ' + number(layout.width) + " " + number(layout.height) + '" role="img" aria-label="' + escapeXml(layout.header.title || "Jianpu notation") + '">');
-  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," + ".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number," + ".jianpu-lyric{" + "font-family:" + notationFontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px;font-weight:700}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600;" + "font-family:" + titleFontFamily + "}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-meter{text-anchor:middle;font-size:" + number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) + "px;font-weight:400}" + ".jianpu-composer{text-anchor:end;font-size:" + number(layout.style.composerFontSize) + "px;font-style:italic}" + ".jianpu-chord{text-anchor:middle;font-size:" + number(layout.style.chordFontSize) + "px;font-weight:400}" + ".jianpu-dynamic{text-anchor:middle;font-size:" + number(layout.style.dynamicFontSize) + "px;font-style:italic}" + ".jianpu-lyric{text-anchor:middle;font-size:" + number(layout.style.lyricFontSize) + "px;font-weight:400}" + ".jianpu-lyric-extend{opacity:.6}" + ".jianpu-measure-number{font-size:" + number(layout.style.measureNumberFontSize) + "px;font-weight:400}" + ".jianpu-page-number{text-anchor:end;font-size:" + number(layout.style.pageNumberFontSize || 13) + "px;font-weight:400}" + ".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" + "font-size:" + number(layout.style.fingeringFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" + ".jianpu-note{cursor:pointer}" + ".jianpu-note:hover .jianpu-number{fill:#1a73e8}" + ".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + ".jianpu-meter-line{stroke:currentColor;fill:none}" + "</style>");
+  output.push("<style>" + ".abcjs-jianpu{background:#fff;color:#111}" + ".jianpu-header,.jianpu-meter,.jianpu-title,.jianpu-composer{" + "font-family:" + fontFamily + ";fill:currentColor}" + ".jianpu-number,.jianpu-accidental,.jianpu-chord,.jianpu-dynamic," + ".jianpu-measure-number,.jianpu-fingering-text,.jianpu-page-number," + ".jianpu-lyric{" + "font-family:" + notationFontFamily + ";fill:currentColor}" + ".jianpu-number{text-anchor:middle;font-size:" + number(layout.style.numberFontSize) + "px;font-weight:700}" + ".jianpu-accidental{text-anchor:end;font-size:" + number(layout.style.numberFontSize * 0.7) + "px}" + ".jianpu-title{text-anchor:middle;font-size:" + number(layout.style.titleFontSize) + "px;font-weight:600;" + "font-family:" + titleFontFamily + "}" + ".jianpu-header{font-size:" + number(layout.style.headerFontSize) + "px}" + ".jianpu-meter{text-anchor:middle;font-size:" + number(layout.style.meterFontSize || layout.style.headerFontSize * 0.78) + "px;font-weight:400}" + ".jianpu-composer{text-anchor:end;font-size:" + number(layout.style.composerFontSize) + "px;font-style:italic}" + ".jianpu-chord{text-anchor:middle;font-size:" + number(layout.style.chordFontSize) + "px;font-weight:400}" + ".jianpu-dynamic{text-anchor:middle;font-size:" + number(layout.style.dynamicFontSize) + "px;font-style:italic}" + ".jianpu-lyric{text-anchor:middle;font-size:" + number(layout.style.lyricFontSize) + "px;font-weight:400}" + ".jianpu-lyric-extend{opacity:.6}" + ".jianpu-measure-number{font-size:" + number(layout.style.measureNumberFontSize) + "px;font-weight:400}" + ".jianpu-page-number{text-anchor:end;font-size:" + number(layout.style.pageNumberFontSize || 13) + "px;font-weight:400}" + ".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" + "font-size:" + number(layout.style.fingeringFontSize) + "px}" + ".jianpu-octave-dot,.jianpu-duration-dot,.jianpu-bar-dot," + ".jianpu-staccato-dot{fill:currentColor}" + ".jianpu-note{cursor:pointer}" + ".jianpu-note:hover .jianpu-number{fill:#1a73e8}" + ".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" + ".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie," + ".jianpu-tuplet-bracket,.jianpu-volta-bracket{" + "stroke:currentColor;fill:none;stroke-linecap:butt}" + ".jianpu-slur{stroke:currentColor;fill:none;stroke-linecap:butt;" + "stroke-dasharray:4 2}" + ".jianpu-meter-line{stroke:currentColor;fill:none}" + ".jianpu-tuplet-number{text-anchor:middle;font-size:" + number(layout.style.tupletFontSize || 13) + "px;font-style:italic;" + "fill:currentColor}" + ".jianpu-volta-label{font-size:" + number(layout.style.voltaFontSize || 13) + "px;fill:currentColor}" + ".jianpu-grace-number{text-anchor:middle;font-size:" + number(layout.style.graceNoteFontSize || 13) + "px;font-weight:700;fill:currentColor}" + "</style>");
   if (layout.header.title) {
     output.push('<text class="jianpu-title" x="' + number(layout.header.titlePosition.x) + '" y="' + number(layout.header.titlePosition.y) + '">' + escapeXml(layout.header.title) + "</text>");
   }
@@ -4437,6 +4866,12 @@ function renderJianpuSvg(layout, options) {
       output.push('<g class="jianpu-measure" data-measure="' + (measure.index + 1) + '">');
       measure.events.forEach(function (event) {
         output.push('<g class="jianpu-event" data-duration-beats="' + number(event.durationBeats) + '" data-instrument="' + escapeXml(event.instrument || "piano") + '">');
+        event.annotations.graceNotes.forEach(function (grace) {
+          if (grace.accidentalPosition) {
+            output.push('<text class="jianpu-accidental" x="' + number(grace.accidentalPosition.x) + '" y="' + number(grace.accidentalPosition.y) + '">' + escapeXml(grace.accidentalText) + "</text>");
+          }
+          output.push('<text class="jianpu-grace-number" x="' + number(grace.x) + '" y="' + number(grace.y) + '">' + grace.number + "</text>");
+        });
         event.notePositions.forEach(function (note) {
           var clickable = typeof note.midi === "number";
           if (clickable) {
@@ -4470,6 +4905,9 @@ function renderJianpuSvg(layout, options) {
         event.durationLayout.dots.forEach(function (dot) {
           output.push(circleSvg(dot, "jianpu-duration-dot"));
         });
+        if (event.annotations.staccato) {
+          output.push(circleSvg(event.annotations.staccato, "jianpu-staccato-dot"));
+        }
         if (event.annotations.lyric) {
           var isExtender = event.annotations.lyric.text === "";
           var lyricClass = "jianpu-lyric" + (isExtender ? " jianpu-lyric-extend" : "");
@@ -4485,15 +4923,62 @@ function renderJianpuSvg(layout, options) {
       measure.beamLines.forEach(function (line) {
         output.push(lineSvg(line, "jianpu-underline jianpu-beam"));
       });
+      (measure.tupletBrackets || []).forEach(function (bracket) {
+        output.push(lineSvg({
+          x1: bracket.x1,
+          x2: bracket.x2,
+          y1: bracket.y,
+          y2: bracket.y,
+          strokeWidth: 1.2
+        }, "jianpu-tuplet-bracket"));
+        output.push(lineSvg({
+          x1: bracket.x1,
+          x2: bracket.x1,
+          y1: bracket.y,
+          y2: bracket.y + bracket.tickHeight,
+          strokeWidth: 1.2
+        }, "jianpu-tuplet-bracket"));
+        output.push(lineSvg({
+          x1: bracket.x2,
+          x2: bracket.x2,
+          y1: bracket.y,
+          y2: bracket.y + bracket.tickHeight,
+          strokeWidth: 1.2
+        }, "jianpu-tuplet-bracket"));
+        output.push('<text class="jianpu-tuplet-number" x="' + number(bracket.labelX) + '" y="' + number(bracket.labelY) + '">' + escapeXml(bracket.label) + "</text>");
+      });
       if (measure.endingBar) {
         measure.endingBar.lines.forEach(function (line) {
           output.push(lineSvg(line, "jianpu-bar"));
         });
+        (measure.endingBar.dots || []).forEach(function (dot) {
+          output.push(circleSvg(dot, "jianpu-bar-dot"));
+        });
       }
       output.push("</g>");
     });
+    (layoutLine.voltaBrackets || []).forEach(function (bracket) {
+      output.push(lineSvg({
+        x1: bracket.x1,
+        x2: bracket.x2,
+        y1: bracket.y,
+        y2: bracket.y,
+        strokeWidth: 1.2
+      }, "jianpu-volta-bracket"));
+      output.push(lineSvg({
+        x1: bracket.x1,
+        x2: bracket.x1,
+        y1: bracket.y,
+        y2: bracket.y + bracket.tickHeight,
+        strokeWidth: 1.2
+      }, "jianpu-volta-bracket"));
+      output.push('<text class="jianpu-volta-label" x="' + number(bracket.labelX) + '" y="' + number(bracket.labelY) + '">' + escapeXml(bracket.label + ".") + "</text>");
+    });
     layoutLine.tiePaths.forEach(function (tie) {
       output.push('<path class="jianpu-tie" d="' + escapeXml(tie.d) + '" stroke-width="1.2"/>');
+    });
+    (layoutLine.slurPaths || []).forEach(function (slur) {
+      output.push('<path class="jianpu-slur" d="' + escapeXml(slur.d) + '" stroke-width="1.2"/>');
     });
     output.push("</g>");
   });

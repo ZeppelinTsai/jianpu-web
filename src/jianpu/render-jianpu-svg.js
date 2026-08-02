@@ -87,13 +87,25 @@ function renderJianpuSvg(layout, options) {
 		"px;font-weight:400}" +
 		".jianpu-fingering-text{text-anchor:middle;dominant-baseline:central;" +
 		"font-size:" + number(layout.style.fingeringFontSize) + "px}" +
-		".jianpu-octave-dot,.jianpu-duration-dot{fill:currentColor}" +
+		".jianpu-octave-dot,.jianpu-duration-dot,.jianpu-bar-dot," +
+		".jianpu-staccato-dot{fill:currentColor}" +
 		".jianpu-note{cursor:pointer}" +
 		".jianpu-note:hover .jianpu-number{fill:#1a73e8}" +
 		".jianpu-fingering-circle{fill:white;stroke:currentColor;stroke-width:1}" +
-		".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie{" +
+		".jianpu-underline,.jianpu-extension,.jianpu-bar,.jianpu-tie," +
+		".jianpu-tuplet-bracket,.jianpu-volta-bracket{" +
 		"stroke:currentColor;fill:none;stroke-linecap:butt}" +
+		".jianpu-slur{stroke:currentColor;fill:none;stroke-linecap:butt;" +
+		"stroke-dasharray:4 2}" +
 		".jianpu-meter-line{stroke:currentColor;fill:none}" +
+		".jianpu-tuplet-number{text-anchor:middle;font-size:" +
+		number(layout.style.tupletFontSize || 13) + "px;font-style:italic;" +
+		"fill:currentColor}" +
+		".jianpu-volta-label{font-size:" +
+		number(layout.style.voltaFontSize || 13) + "px;fill:currentColor}" +
+		".jianpu-grace-number{text-anchor:middle;font-size:" +
+		number(layout.style.graceNoteFontSize || 13) +
+		"px;font-weight:700;fill:currentColor}" +
 		"</style>");
 
 	if (layout.header.title) {
@@ -155,6 +167,17 @@ function renderJianpuSvg(layout, options) {
 				output.push('<g class="jianpu-event" data-duration-beats="' +
 					number(event.durationBeats) + '" data-instrument="' +
 					escapeXml(event.instrument || "piano") + '">');
+				event.annotations.graceNotes.forEach(function(grace) {
+					if (grace.accidentalPosition) {
+						output.push('<text class="jianpu-accidental" x="' +
+							number(grace.accidentalPosition.x) + '" y="' +
+							number(grace.accidentalPosition.y) + '">' +
+							escapeXml(grace.accidentalText) + "</text>");
+					}
+					output.push('<text class="jianpu-grace-number" x="' +
+						number(grace.x) + '" y="' + number(grace.y) + '">' +
+						grace.number + "</text>");
+				});
 				event.notePositions.forEach(function(note) {
 					var clickable = typeof note.midi === "number";
 					if (clickable) {
@@ -202,6 +225,9 @@ function renderJianpuSvg(layout, options) {
 				event.durationLayout.dots.forEach(function(dot) {
 					output.push(circleSvg(dot, "jianpu-duration-dot"));
 				});
+				if (event.annotations.staccato) {
+					output.push(circleSvg(event.annotations.staccato, "jianpu-staccato-dot"));
+				}
 				if (event.annotations.lyric) {
 					var isExtender = event.annotations.lyric.text === "";
 					var lyricClass = "jianpu-lyric" +
@@ -221,15 +247,55 @@ function renderJianpuSvg(layout, options) {
 			measure.beamLines.forEach(function(line) {
 				output.push(lineSvg(line, "jianpu-underline jianpu-beam"));
 			});
+			(measure.tupletBrackets || []).forEach(function(bracket) {
+				output.push(lineSvg({
+					x1: bracket.x1, x2: bracket.x2, y1: bracket.y, y2: bracket.y,
+					strokeWidth: 1.2,
+				}, "jianpu-tuplet-bracket"));
+				output.push(lineSvg({
+					x1: bracket.x1, x2: bracket.x1,
+					y1: bracket.y, y2: bracket.y + bracket.tickHeight,
+					strokeWidth: 1.2,
+				}, "jianpu-tuplet-bracket"));
+				output.push(lineSvg({
+					x1: bracket.x2, x2: bracket.x2,
+					y1: bracket.y, y2: bracket.y + bracket.tickHeight,
+					strokeWidth: 1.2,
+				}, "jianpu-tuplet-bracket"));
+				output.push('<text class="jianpu-tuplet-number" x="' +
+					number(bracket.labelX) + '" y="' + number(bracket.labelY) + '">' +
+					escapeXml(bracket.label) + "</text>");
+			});
 			if (measure.endingBar) {
 				measure.endingBar.lines.forEach(function(line) {
 					output.push(lineSvg(line, "jianpu-bar"));
 				});
+				(measure.endingBar.dots || []).forEach(function(dot) {
+					output.push(circleSvg(dot, "jianpu-bar-dot"));
+				});
 			}
 			output.push("</g>");
 		});
+		(layoutLine.voltaBrackets || []).forEach(function(bracket) {
+			output.push(lineSvg({
+				x1: bracket.x1, x2: bracket.x2, y1: bracket.y, y2: bracket.y,
+				strokeWidth: 1.2,
+			}, "jianpu-volta-bracket"));
+			output.push(lineSvg({
+				x1: bracket.x1, x2: bracket.x1,
+				y1: bracket.y, y2: bracket.y + bracket.tickHeight,
+				strokeWidth: 1.2,
+			}, "jianpu-volta-bracket"));
+			output.push('<text class="jianpu-volta-label" x="' +
+				number(bracket.labelX) + '" y="' + number(bracket.labelY) + '">' +
+				escapeXml(bracket.label + ".") + "</text>");
+		});
 		layoutLine.tiePaths.forEach(function(tie) {
 			output.push('<path class="jianpu-tie" d="' + escapeXml(tie.d) +
+				'" stroke-width="1.2"/>');
+		});
+		(layoutLine.slurPaths || []).forEach(function(slur) {
+			output.push('<path class="jianpu-slur" d="' + escapeXml(slur.d) +
 				'" stroke-width="1.2"/>');
 		});
 		output.push("</g>");

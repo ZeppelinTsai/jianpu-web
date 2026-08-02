@@ -495,9 +495,11 @@ function mergeTupletBrackets(measure, options, warnings) {
     var last = activeGroup[activeGroup.length - 1];
     if (!last.tuplet.isEnd) {
       warnings.push(
-        "Tuplet " + activeGroup[0].tuplet.ratio + " in measure " +
+        "Tuplet " +
+          activeGroup[0].tuplet.ratio +
+          " in measure " +
           (measure.index + 1) +
-          " has no matching end within the measure; bracket was not drawn."
+          " has no matching end within the measure; bracket was not drawn.",
       );
     } else if (activeGroup.length >= 2) {
       var first = activeGroup[0];
@@ -742,22 +744,27 @@ function positionLine(line, lineIndex, contentWidth, options, warnings) {
         // left-to-right immediately before the main note, without their own
         // duration marks or precise beat-accurate spacing (see the warning
         // create-jianpu-converter pushes when note.gracenotes is present).
-        graceNotes: (event.source.graceNotes || []).map(function (grace, index) {
-          var gx = event.graceStartX + options.graceNoteWidth * (index + 0.5);
-          var accidental = accidentalText(grace.accidentalMark);
-          return {
-            x: gx,
-            y: baselineY - options.graceNoteRaise,
-            number: grace.number,
-            accidentalText: accidental,
-            accidentalPosition: accidental
-              ? {
-                  x: gx - options.graceNoteWidth / 2,
-                  y: baselineY - options.graceNoteRaise - options.accidentalRaise * 0.6,
-                }
-              : null,
-          };
-        }),
+        graceNotes: (event.source.graceNotes || []).map(
+          function (grace, index) {
+            var gx = event.graceStartX + options.graceNoteWidth * (index + 0.5);
+            var accidental = accidentalText(grace.accidentalMark);
+            return {
+              x: gx,
+              y: baselineY - options.graceNoteRaise,
+              number: grace.number,
+              accidentalText: accidental,
+              accidentalPosition: accidental
+                ? {
+                    x: gx - options.graceNoteWidth / 2,
+                    y:
+                      baselineY -
+                      options.graceNoteRaise -
+                      options.accidentalRaise * 0.6,
+                  }
+                : null,
+            };
+          },
+        ),
         staccato: hasStaccato
           ? {
               cx: noteStartX + event.noteColumnWidth / 2,
@@ -1180,11 +1187,12 @@ function layoutVoltas(lines, options, warnings) {
       });
     } else {
       warnings.push(
-        "Volta \"" + active.label + "\" spans multiple lines; only the " +
+        'Volta "' +
+          active.label +
+          '" spans multiple lines; only the ' +
           "starting line's portion was bracketed.",
       );
-      var startLineLast =
-        active.line.measures[active.line.measures.length - 1];
+      var startLineLast = active.line.measures[active.line.measures.length - 1];
       var startLineEndX = startLineLast.endingBar
         ? startLineLast.endingBar.x
         : startLineLast.x + startLineLast.width;
@@ -1203,7 +1211,11 @@ function layoutVoltas(lines, options, warnings) {
 
   allMeasures.forEach(function (entry) {
     if (pendingLabel !== null) {
-      active = { label: pendingLabel, startMeasure: entry.measure, line: entry.line };
+      active = {
+        label: pendingLabel,
+        startMeasure: entry.measure,
+        line: entry.line,
+      };
       pendingLabel = null;
     }
     var endingBar = entry.measure.endingBar;
@@ -1219,10 +1231,10 @@ function layoutVoltas(lines, options, warnings) {
   });
 
   if (active)
-    warnings.push("Volta \"" + active.label + "\" has no matching end.");
+    warnings.push('Volta "' + active.label + '" has no matching end.');
   if (pendingLabel !== null)
     warnings.push(
-      "Volta \"" + pendingLabel + "\" marker has no following measure.",
+      'Volta "' + pendingLabel + '" marker has no following measure.',
     );
 }
 

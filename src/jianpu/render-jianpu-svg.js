@@ -166,7 +166,8 @@ function renderJianpuSvg(layout, options) {
 			(layoutLine.index + 1) + '">');
 		output.push('<text class="jianpu-measure-number" x="' +
 			number(layoutLine.measureNumber.x) + '" y="' +
-			number(layoutLine.measureNumber.y) + '">' +
+			number(layoutLine.measureNumber.y) + '" text-anchor="' +
+			escapeXml(layoutLine.measureNumber.textAnchor || "end") + '">' +
 			escapeXml(layoutLine.measureNumber.text) + "</text>");
 		layoutLine.measures.forEach(function(measure) {
 			output.push('<g class="jianpu-measure" data-measure="' +

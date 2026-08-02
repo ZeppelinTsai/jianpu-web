@@ -55,10 +55,10 @@
 <g class="jianpu-line" data-line="2">
 <text class="jianpu-measure-number" x="4" y="223">2</text>
 <g class="jianpu-measure" data-measure="2">
-<line class="jianpu-bar" x1="257.75" y1="252" x2="257.75" y2="285" stroke-width="4"/>
-<line class="jianpu-bar" x1="261.75" y1="252" x2="261.75" y2="285" stroke-width="1"/>
-<circle class="jianpu-bar-dot" cx="268.75" cy="265" r="2"/>
-<circle class="jianpu-bar-dot" cx="268.75" cy="272" r="2"/>
+<line class="jianpu-bar" x1="32" y1="252" x2="32" y2="285" stroke-width="4"/>
+<line class="jianpu-bar" x1="36" y1="252" x2="36" y2="285" stroke-width="1"/>
+<circle class="jianpu-bar-dot" cx="43" cy="265" r="2"/>
+<circle class="jianpu-bar-dot" cx="43" cy="272" r="2"/>
 </g>
 <g class="jianpu-measure" data-measure="3">
 <g class="jianpu-event" data-duration-beats="1" data-instrument="piano">

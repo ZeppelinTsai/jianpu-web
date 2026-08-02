@@ -581,8 +581,9 @@ function positionLine(line, lineIndex, contentWidth, options, warnings) {
   line.height = options.lineHeight;
   line.measureNumber = {
     text: String(line.measures[0].index + 1),
-    x: Math.max(4, options.paddingLeft - 28),
+    x: Math.max(8, options.paddingLeft - 20),
     y: lineTop + 9,
+    textAnchor: "end",
   };
   line.eventGap = eventGap;
   var innerLineWidth =
@@ -882,7 +883,15 @@ function positionLine(line, lineIndex, contentWidth, options, warnings) {
     mergeTupletBrackets(measure, options, warnings);
 
     if (measure.endingBar) {
-      var barX = cursorX + measure.width - measure.endingBar.width;
+      var isLineStartRepeatBar =
+        measureIndex === 0 &&
+        !measure.events.length &&
+        (measure.endingBar.type === "bar_left_repeat" ||
+          measure.endingBar.type === "bar_right_repeat" ||
+          measure.endingBar.type === "bar_dbl_repeat");
+      var barX = isLineStartRepeatBar
+        ? cursorX
+        : cursorX + measure.width - measure.endingBar.width;
       measure.endingBar.x = barX;
       measure.endingBar.y1 =
         baselineY - options.numberFontSize - options.barTopExtra;
@@ -1278,8 +1287,11 @@ function layoutJianpu(elements, options, measureText) {
   layoutVoltas(lines, options, warnings);
   resolveVoltaChordOverlap(lines, options);
   var totalPages = Math.ceil(lines.length / options.linesPerPage);
+  var showPageNumbers =
+    options.showPageNumbers === true ||
+    (options.showPageNumbers === undefined && totalPages > 1);
   var pageNumbers = [];
-  if (totalPages > 1) {
+  if (showPageNumbers) {
     for (var pageIndex = 0; pageIndex < totalPages; pageIndex++) {
       var lastLineIndex = Math.min(
         lines.length - 1,

@@ -112,6 +112,32 @@ assert.match(
 // fixture should silently misbehave or emit an unexpected warning.
 assert.strictEqual(result.warnings.length, 3);
 
+var firstMeasureRepeatAbc = 'X:1\nM:4/4\nL:1/4\nK:C\n|: C D E F | G A B C |]\n';
+var repeatResult = jianpu.fromAbc(firstMeasureRepeatAbc, { staffWidth: 1400 }, tuneBook.parseOnly);
+var firstLineFirstMeasure = repeatResult.layout.lines[0].measures[0];
+assert.strictEqual(firstLineFirstMeasure.endingBar.type, 'bar_left_repeat');
+assert.ok(
+	firstLineFirstMeasure.endingBar.x <= firstLineFirstMeasure.x + 8,
+	'Repeat marks at the start of a line should be anchored to the left edge of the line.'
+);
+assert.ok(
+	repeatResult.layout.lines[0].measureNumber.x >= 8,
+	'Measure numbers should stay clear of the left edge in printed output.'
+);
+
+var multiPageAbc = 'X:1\nM:4/4\nL:1/4\nK:C\n' + 'C |'.repeat(25) + '\n';
+var multiPageResult = jianpu.fromAbc(multiPageAbc, { staffWidth: 320, linesPerPage: 1 }, tuneBook.parseOnly);
+assert.ok(
+	multiPageResult.layout.pageNumbers.length > 0,
+	'Multi-page output should include page numbers by default.'
+);
+var multiPageDisabledResult = jianpu.fromAbc(multiPageAbc, { staffWidth: 320, linesPerPage: 1, showPageNumbers: false }, tuneBook.parseOnly);
+assert.strictEqual(
+	multiPageDisabledResult.layout.pageNumbers.length,
+	0,
+	'showPageNumbers=false should suppress page number labels.'
+);
+
 console.log(JSON.stringify({
 	outputPath: outputPath,
 	lines: result.layout.lines.length,

@@ -302,15 +302,40 @@ function groupMeasures(elements, options, measureText, warnings) {
           "Unsupported bar type " + requestedType + "; rendered as bar_thin.",
         );
       }
-      current.endingBar = {
-        sourceType: requestedType,
-        type: renderedType,
-        width: barWidth(renderedType, options),
-        startEnding: element.startEnding || null,
-        endEnding: element.endEnding === true,
-      };
-      measures.push(current);
-      current = createMeasure(measures.length);
+      var previousMeasure = measures.length
+        ? measures[measures.length - 1]
+        : null;
+      if (
+        renderedType === "bar_thin" &&
+        !current.events.length &&
+        previousMeasure &&
+        previousMeasure.endingBar
+      ) {
+        // A plain bar immediately following another bar, with no notes
+        // between them (e.g. a repeat-close ":|" ending one source line
+        // and a volta-open "|1" starting the next), carries no visual
+        // meaning of its own beyond the startEnding/endEnding it's
+        // marked with — the volta bracket already shows where the ending
+        // begins. Left as its own (empty) measure, it renders as a bare
+        // "|" floating at the start of the next line with nothing played
+        // before it, unlike every other line which starts directly on a
+        // note. Fold its startEnding/endEnding onto the previous bar
+        // instead of creating an empty measure to hold it.
+        if (element.startEnding)
+          previousMeasure.endingBar.startEnding = element.startEnding;
+        if (element.endEnding === true)
+          previousMeasure.endingBar.endEnding = true;
+      } else {
+        current.endingBar = {
+          sourceType: requestedType,
+          type: renderedType,
+          width: barWidth(renderedType, options),
+          startEnding: element.startEnding || null,
+          endEnding: element.endEnding === true,
+        };
+        measures.push(current);
+        current = createMeasure(measures.length);
+      }
     } else if (element && Array.isArray(element.notes)) {
       current.events.push(measureEvent(element, options, measureText));
     }
@@ -1192,6 +1217,37 @@ function layoutVoltas(lines, options, warnings) {
     );
 }
 
+// Chord symbols are placed at a fixed offset from their line's top
+// (chordBaseY, computed per-event in positionLine) before volta brackets
+// even exist yet — layoutVoltas runs afterward, since a bracket's
+// position depends on line.y, which positionLine only just assigned. A
+// volta bracket's horizontal line sits close enough to its line's top
+// (options.voltaGap) that a chord glyph anchored at the default offset
+// visually overlaps it: text renders *above* the y-coordinate it's
+// anchored at, and the default chord offset leaves less clearance than a
+// chord's font-size worth of ascender needs. This nudges any chord that
+// would collide down below the bracket instead.
+function resolveVoltaChordOverlap(lines, options) {
+  lines.forEach(function (line) {
+    if (!line.voltaBrackets || !line.voltaBrackets.length) return;
+    var minChordBaseY =
+      line.voltaBrackets.reduce(function (maxY, bracket) {
+        return Math.max(maxY, bracket.y + bracket.tickHeight);
+      }, 0) + options.chordFontSize;
+    line.measures.forEach(function (measure) {
+      measure.events.forEach(function (event) {
+        var chords = event.annotations && event.annotations.chords;
+        if (!chords || !chords.length) return;
+        var delta = minChordBaseY - chords[0].y;
+        if (delta <= 0) return;
+        chords.forEach(function (chord) {
+          chord.y += delta;
+        });
+      });
+    });
+  });
+}
+
 /**
  * Lay out converted jianpu events without requiring a browser DOM.
  *
@@ -1220,6 +1276,7 @@ function layoutJianpu(elements, options, measureText) {
   layoutTies(lines, options, warnings);
   layoutSlurs(lines, options, warnings);
   layoutVoltas(lines, options, warnings);
+  resolveVoltaChordOverlap(lines, options);
   var totalPages = Math.ceil(lines.length / options.linesPerPage);
   var pageNumbers = [];
   if (totalPages > 1) {

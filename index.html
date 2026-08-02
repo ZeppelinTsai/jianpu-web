@@ -1506,13 +1506,101 @@
           return 60 / bpm;
         }
 
+        // Tags each measure with the volta ("first/second ending") label it
+        // belongs to, or null if it's outside any volta — mirroring the
+        // state machine layout-jianpu's layoutVoltas uses for drawing
+        // brackets (a bar's startEnding opens a label on the *next*
+        // measure; endEnding closes it), but walking every measure in the
+        // whole tune instead of being scoped to one printed line, since
+        // playback needs to reason about repeat structure across line
+        // breaks.
+        function tagVoltaLabels(measures) {
+          var labels = new Array(measures.length).fill(null);
+          var currentLabel = null;
+          var pendingLabel = null;
+          measures.forEach(function (measure, i) {
+            if (pendingLabel !== null) {
+              currentLabel = pendingLabel;
+              pendingLabel = null;
+            }
+            labels[i] = currentLabel;
+            var bar = measure.endingBar;
+            if (bar) {
+              if (bar.endEnding) currentLabel = null;
+              if (bar.startEnding) pendingLabel = bar.startEnding;
+            }
+          });
+          return labels;
+        }
+
+        // Expands the notated measure sequence into the order they should
+        // actually *sound*: a bar_right_repeat jumps playback back to the
+        // most recent bar_left_repeat (or the start of the tune if there
+        // wasn't one). When that repeat close falls inside a volta, the
+        // first pass plays the shared body plus that volta's measures;
+        // the second pass replays the shared body but skips straight to
+        // the *next* volta's measures instead (matching the standard
+        // "|1 ... :|2 ..." convention) rather than repeating ending 1
+        // again. A plain repeat close with no volta involved just
+        // replays the whole bracketed body once more.
+        function buildRepeatPlayOrder(measures) {
+          var labels = tagVoltaLabels(measures);
+          var order = [];
+          var repeatStart = 0;
+          var i = 0;
+          while (i < measures.length) {
+            var bar = measures[i].endingBar;
+            if (bar && bar.type === "bar_left_repeat") repeatStart = i + 1;
+            order.push(i);
+            if (bar && bar.type === "bar_right_repeat") {
+              if (labels[i] !== null) {
+                var closingLabel = labels[i];
+                for (var j = repeatStart; j <= i; j++) {
+                  if (labels[j] === null) order.push(j);
+                }
+                var k = i + 1;
+                while (
+                  k < measures.length &&
+                  labels[k] !== null &&
+                  labels[k] !== closingLabel
+                ) {
+                  order.push(k);
+                  k++;
+                }
+                i = k;
+                continue;
+              }
+              for (var j2 = repeatStart; j2 <= i; j2++) order.push(j2);
+            }
+            i++;
+          }
+          return order;
+        }
+
         function collectPlayableEvents(layout) {
-          var events = [];
+          var measures = [];
           layout.lines.forEach(function (line) {
             line.measures.forEach(function (measure) {
-              measure.events.forEach(function (event) {
-                events.push(event);
-              });
+              measures.push(measure);
+            });
+          });
+          // Every event's position in this *unexpanded* (as-notated)
+          // sequence always matches the order ".jianpu-event" elements
+          // appear in the rendered SVG, since the score is drawn once no
+          // matter how many times playback repeats through it — tag each
+          // event with that stable index so buildPlaybackPlan can look up
+          // its DOM element correctly even after repeat expansion
+          // duplicates the event into the playback order below.
+          var domIndex = 0;
+          measures.forEach(function (measure) {
+            measure.events.forEach(function (event) {
+              event.domIndex = domIndex++;
+            });
+          });
+          var events = [];
+          buildRepeatPlayOrder(measures).forEach(function (measureIndex) {
+            measures[measureIndex].events.forEach(function (event) {
+              events.push(event);
             });
           });
           return events;
@@ -1590,9 +1678,9 @@
           var pendingTies = new Map();
           var pendingChord = null;
           var offsetBeats = 0;
-          collectPlayableEvents(layout).forEach(function (event, eventIndex) {
+          collectPlayableEvents(layout).forEach(function (event) {
             var durationBeats = event.durationBeats || 1;
-            var domEventEl = domEvents[eventIndex] || null;
+            var domEventEl = domEvents[event.domIndex] || null;
 
             var chordText =
               event.annotations &&

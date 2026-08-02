@@ -498,11 +498,19 @@
         .print-row {
           break-inside: avoid;
           page-break-inside: avoid;
+          position: relative;
+          width: 100%;
+          height: 0;
+          overflow: hidden;
+          margin-bottom: 2mm;
         }
         .print-row svg {
           display: block;
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 100%;
-          height: auto;
+          height: 100%;
         }
         #print-preview .jianpu-page-number {
           display: none;
@@ -824,6 +832,37 @@
                     </tbody>
                   </table>
                 </li>
+                <li>
+                  連音（tuplet）：在音符群前加
+                  <code>(3</code>，例如 <code>(3D E F</code>
+                  表示這三個音合起來只佔兩個音符的時值，會畫出連音括號與比例數字；若比例無法對應到簡譜可表示的時值會顯示提醒。
+                </li>
+                <li>
+                  反覆記號與跳房子：<code>|:</code>／<code>:|</code>
+                  會畫成小節線旁的反覆圓點，<code
+                    >:|1 ... :|2 ...</code
+                  >
+                  表示跳房子（第一、第二次反覆的不同結尾）。
+                </li>
+                <li>
+                  圓滑線（slur）：用括號
+                  <code>( )</code>
+                  包住多個不同音高的音符，與同音的圓滑線（tie，<code
+                    >-</code
+                  >）不同——slur 只是演奏圓滑的標示，畫成一條弧線，不會像
+                  tie 一樣合併播放時值。
+                </li>
+                <li>
+                  裝飾音（grace note）：音符前加
+                  <code>{...}</code>，例如 <code>{d}G2</code>
+                  會在該音前方畫一個小號的裝飾音符號。
+                </li>
+                <li>
+                  其他演奏記號：斷音
+                  <code>.</code>（staccato）畫成音符旁的小圓點；力度記號（
+                  <code>!p!</code>、<code>!f!</code> 等）以文字顯示；其餘裝飾記號（例如
+                  <code>!accent!</code>）目前僅辨識、尚未繪製，會顯示一次性提醒。
+                </li>
               </ul>
               <h6 class="fw-bold">簡譜文字模式</h6>
               <ul class="small mb-0">
@@ -973,6 +1012,39 @@
                       </tr>
                     </tbody>
                   </table>
+                </li>
+                <li>
+                  Tuplets: write <code>(3</code> before a group of notes,
+                  e.g. <code>(3D E F</code>, to mark a triplet whose three
+                  notes together take up only two notes' worth of duration.
+                  A bracket with the ratio number is drawn; if the ratio
+                  can't be represented exactly in jianpu note values, a
+                  warning is shown.
+                </li>
+                <li>
+                  Repeat bars and voltas: <code>|:</code> / <code>:|</code>
+                  are drawn as repeat dots next to the bar line;
+                  <code>:|1 ... :|2 ...</code> marks first/second-ending
+                  (volta) brackets.
+                </li>
+                <li>
+                  Slurs: wrap notes of different pitches in
+                  <code>( )</code> for a slur — unlike a same-pitch tie
+                  (<code>-</code>), a slur is only a phrasing mark, drawn
+                  as a curved line, and doesn't merge the notes' playback
+                  duration the way a tie does.
+                </li>
+                <li>
+                  Grace notes: put <code>{...}</code> before a note, e.g.
+                  <code>{d}G2</code>, to draw a small grace-note number in
+                  front of it.
+                </li>
+                <li>
+                  Other decorations: staccato (<code>.</code>) is drawn as
+                  a small dot beside the note; dynamics (<code>!p!</code>,
+                  <code>!f!</code>, etc.) render as text; other
+                  decorations (e.g. <code>!accent!</code>) are recognized
+                  but not yet drawn, and trigger a one-time warning.
                 </li>
               </ul>
               <h6 class="fw-bold">Jianpu Text Mode</h6>
@@ -1337,39 +1409,72 @@
         // The browser's print pagination has no idea where one notated
         // line ends and the next begins — left alone, a page break can
         // land in the middle of a line's row of measures. This rebuilds
-        // the preview as one <svg> slice per line (using the layout's own
-        // line.y/line.height to crop each slice via viewBox, and a leading
-        // slice for everything above the first line: title/composer/key/
-        // meter), each wrapped in a block with break-inside:avoid — the
-        // print engine can then only ever break *between* slices, never
-        // inside one, so a line either fits whole on the current page or
-        // moves entirely to the next.
+        // the preview as one <svg> slice per line, each wrapped in a block
+        // with break-inside:avoid — the print engine can then only ever
+        // break *between* slices, never inside one, so a line either fits
+        // whole on the current page or moves entirely to the next.
+        //
+        // Each slice is assembled from only that line's own <g class=
+        // "jianpu-line"> (the header band uses <g class="jianpu-header-
+        // band">) rather than from a viewBox-cropped clone of the *whole*
+        // rendered SVG. Cropping the whole tree by pixel range seems
+        // simpler, but a glyph's ink can extend past the y-coordinate it's
+        // anchored at — e.g. a measure-number label sits close to its own
+        // line's top edge, and its ascender pokes a few pixels above that
+        // into the *previous* line's crop window. That produced a visible
+        // sliver of the next row's number bleeding onto the bottom of the
+        // current page, even though the actual notes/measures never
+        // crossed a boundary. Including only the one <g> that logically
+        // belongs to each slice makes that impossible regardless of any
+        // element's exact rendered extent.
         function buildPrintPreview() {
           printPreview.innerHTML = "";
           if (!lastLayout) return;
           var sourceSvg = preview.querySelector("svg");
           if (!sourceSvg) return;
+          var svgNS = "http://www.w3.org/2000/svg";
+          var styleEl = sourceSvg.querySelector("style");
+          var svgClassName = sourceSvg.getAttribute("class") || "";
 
           var bands = [];
           var headerBottom = lastLayout.lines.length
             ? lastLayout.lines[0].y
             : lastLayout.height;
-          if (headerBottom > 0) bands.push({ y: 0, height: headerBottom });
+          if (headerBottom > 0) {
+            bands.push({
+              y: 0,
+              height: headerBottom,
+              group: sourceSvg.querySelector(".jianpu-header-band"),
+            });
+          }
           lastLayout.lines.forEach(function (line) {
-            bands.push({ y: line.y, height: line.height });
+            bands.push({
+              y: line.y,
+              height: line.height,
+              group: sourceSvg.querySelector(
+                '.jianpu-line[data-line="' + (line.index + 1) + '"]',
+              ),
+            });
           });
 
           bands.forEach(function (band) {
-            var clone = sourceSvg.cloneNode(true);
-            clone.setAttribute(
+            if (!band.group) return;
+            var svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("class", svgClassName);
+            svg.setAttribute(
               "viewBox",
               "0 " + band.y + " " + lastLayout.width + " " + band.height,
             );
-            clone.setAttribute("width", lastLayout.width);
-            clone.setAttribute("height", band.height);
+            svg.setAttribute("width", lastLayout.width);
+            svg.setAttribute("height", band.height);
+            if (styleEl) svg.appendChild(styleEl.cloneNode(true));
+            svg.appendChild(band.group.cloneNode(true));
+
             var row = document.createElement("div");
             row.className = "print-row";
-            row.appendChild(clone);
+            row.style.paddingTop =
+              (100 * band.height / lastLayout.width) + "%";
+            row.appendChild(svg);
             printPreview.appendChild(row);
           });
         }

@@ -108,6 +108,13 @@ function renderJianpuSvg(layout, options) {
 		"px;font-weight:700;fill:currentColor}" +
 		"</style>");
 
+	// Wrapped in its own group (mirroring the per-line "jianpu-line" groups
+	// below) so consumers that need to extract a single band of content —
+	// e.g. the print preview, which builds one <svg> per printed row from
+	// this markup — can select exactly the header's elements instead of
+	// relying on pixel-range geometry, which text ascenders and curve
+	// overshoot can poke outside of.
+	output.push('<g class="jianpu-header-band">');
 	if (layout.header.title) {
 		output.push('<text class="jianpu-title" x="' +
 			number(layout.header.titlePosition.x) + '" y="' +
@@ -152,6 +159,7 @@ function renderJianpuSvg(layout, options) {
 			number(layout.header.tempoPosition.y) + '">' +
 			escapeXml(layout.header.tempoLabel) + "</text>");
 	}
+	output.push("</g>");
 
 	layout.lines.forEach(function(layoutLine) {
 		output.push('<g class="jianpu-line" data-line="' +
